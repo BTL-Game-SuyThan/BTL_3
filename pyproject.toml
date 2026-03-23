@@ -1,0 +1,18 @@
+[project]
+name = "BTL3"
+version = "0.1.0"
+description = "A hybrid Flappy Bird and Jetpack-style"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "pygame>=2.6,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
