@@ -100,8 +100,69 @@ def _tint_surface(surface: pygame.Surface, color: tuple[int, int, int]) -> pygam
 
 
 def _build_external_backgrounds(config) -> list[pygame.Surface] | None:
-    _ = config
-    return None
+    sky_sheet = _load_image(KENNEY_ROOT / "sky.png")
+    clouds_strip = _load_image(KENNEY_ROOT / "clouds1.png")
+    cloud_1 = _load_image(KENNEY_ROOT / "cloud1.png")
+    cloud_5 = _load_image(KENNEY_ROOT / "cloud5.png")
+    cloud_9 = _load_image(KENNEY_ROOT / "cloud9.png")
+    mountains_strip = _load_image(KENNEY_ROOT / "pointy_mountains.png")
+    hills_strip = _load_image(KENNEY_ROOT / "hills1.png")
+    mountain_1 = _load_image(KENNEY_ROOT / "mountain1.png")
+    mountain_2 = _load_image(KENNEY_ROOT / "mountain2.png")
+    mountain_3 = _load_image(KENNEY_ROOT / "mountain3.png")
+
+    required = [sky_sheet, clouds_strip, mountains_strip, hills_strip]
+    if any(asset is None for asset in required):
+        return None
+
+    layer_width = max(config.screen_width + 500, 2002)
+    layer_height = config.screen_height
+
+    sky_layer = _build_layer_surface(layer_width, layer_height)
+    sky_tex = pygame.transform.smoothscale(sky_sheet, (layer_width, layer_height))
+    sky_layer.blit(sky_tex, (0, 0))
+    cloud_band = pygame.transform.smoothscale(clouds_strip, (1001, 206))
+    for x in range(0, layer_width + 1001, 1001):
+        sky_layer.blit(cloud_band, (x, 28))
+    cloud_assets = [cloud_1, cloud_5, cloud_9]
+    cloud_positions = [(140, 98), (540, 72), (920, 130), (1320, 84), (1720, 118)]
+    for idx, (x, y) in enumerate(cloud_positions):
+        cloud = cloud_assets[idx % len(cloud_assets)]
+        if cloud is None:
+            continue
+        scale = 0.9 + (idx % 3) * 0.15
+        resized = pygame.transform.smoothscale(
+            cloud, (int(cloud.get_width() * scale), int(cloud.get_height() * scale))
+        )
+        sky_layer.blit(resized, (x, y))
+
+    mountain_layer = _build_layer_surface(layer_width, layer_height)
+    mountain_band = pygame.transform.smoothscale(mountains_strip, (1001, 168))
+    mountain_band = _tint_surface(mountain_band, (196, 214, 232))
+    for x in range(0, layer_width + 1001, 1001):
+        mountain_layer.blit(mountain_band, (x, layer_height - 360))
+    for idx, mount in enumerate([mountain_1, mountain_2, mountain_3, mountain_2, mountain_1]):
+        if mount is None:
+            continue
+        scale = 0.95 + (idx % 2) * 0.16
+        resized = pygame.transform.smoothscale(
+            mount, (int(mount.get_width() * scale), int(mount.get_height() * scale))
+        )
+        mountain_layer.blit(resized, (160 + idx * 360, layer_height - resized.get_height() - 170))
+
+    ground_layer = _build_layer_surface(layer_width, layer_height)
+    hills_band = pygame.transform.smoothscale(hills_strip, (1001, 128))
+    hills_band = _tint_surface(hills_band, (95, 132, 87))
+    for x in range(0, layer_width + 1001, 1001):
+        ground_layer.blit(hills_band, (x, layer_height - 238))
+    ground_top = layer_height - config.ground_height
+    pygame.draw.rect(ground_layer, (111, 156, 83), pygame.Rect(0, ground_top, layer_width, 160))
+    pygame.draw.rect(ground_layer, (86, 120, 61), pygame.Rect(0, ground_top + 18, layer_width, 140))
+    for stripe in range(0, layer_width, 74):
+        pygame.draw.rect(ground_layer, (74, 104, 54), pygame.Rect(stripe, ground_top + 36, 34, 84), border_radius=10)
+    pygame.draw.line(ground_layer, (188, 226, 128), (0, ground_top + 2), (layer_width, ground_top + 2), 4)
+
+    return [sky_layer, mountain_layer, ground_layer]
 
 
 def _build_external_player_frames() -> tuple[list[pygame.Surface], list[pygame.Surface]] | None:

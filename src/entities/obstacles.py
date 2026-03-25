@@ -31,11 +31,24 @@ class ObstacleConfig:
 def _solid_surface(size: tuple[int, int], fill: tuple[int, int, int], edge: tuple[int, int, int], tube: bool = False) -> pygame.Surface:
     surface = pygame.Surface(size, pygame.SRCALPHA)
     rect = surface.get_rect()
-    pygame.draw.rect(surface, fill, rect, border_radius=10 if tube else 6)
-    pygame.draw.rect(surface, edge, rect, width=4, border_radius=10 if tube else 6)
+    corner = 12 if tube else 8
+    pygame.draw.rect(surface, fill, rect, border_radius=corner)
+    for y in range(rect.height):
+        blend = y / max(1, rect.height - 1)
+        darken = int(24 * blend)
+        row = (max(0, fill[0] - darken), max(0, fill[1] - darken), max(0, fill[2] - darken), 110)
+        pygame.draw.line(surface, row, (2, y), (rect.width - 3, y))
+    pygame.draw.rect(surface, edge, rect, width=4, border_radius=corner)
+    highlight = pygame.Rect(8, 8, max(4, rect.width // 4), max(6, rect.height - 16))
+    pygame.draw.rect(surface, (255, 255, 255, 42), highlight, border_radius=8)
     band_y = rect.height // 4
-    pygame.draw.rect(surface, (*edge, 160), pygame.Rect(4, band_y, rect.width - 8, 8), border_radius=4)
-    pygame.draw.rect(surface, (*edge, 160), pygame.Rect(4, rect.height - band_y - 8, rect.width - 8, 8), border_radius=4)
+    pygame.draw.rect(surface, (*edge, 150), pygame.Rect(4, band_y, rect.width - 8, 8), border_radius=4)
+    pygame.draw.rect(surface, (*edge, 150), pygame.Rect(4, rect.height - band_y - 8, rect.width - 8, 8), border_radius=4)
+    if tube:
+        cap_height = min(22, rect.height // 6 + 8)
+        cap = pygame.Rect(-4, 0, rect.width + 8, cap_height)
+        pygame.draw.rect(surface, fill, cap, border_radius=10)
+        pygame.draw.rect(surface, edge, cap, width=4, border_radius=10)
     return surface
 
 
@@ -82,6 +95,7 @@ class Obstacle:
         self.base_gap_center_y = float(gap_center_y)
         self.elapsed = 0.0
         self.alive = True
+        self.passed_player = False
         self.config = config or ObstacleConfig()
         self.top_surface = top_surface
         self.bottom_surface = bottom_surface

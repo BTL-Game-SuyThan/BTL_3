@@ -5,6 +5,7 @@ import random
 import pygame
 
 from src.core.assets import AssetBundle
+from src.core.audio import AudioManager
 from src.core.parallax import ParallaxLayer
 from src.entities.collectibles import Collectible
 from src.entities.obstacles import Obstacle
@@ -22,10 +23,11 @@ from src.systems.spawning import SpawnResult, Spawner
 
 
 class GameWorld:
-    def __init__(self, config: GameConfig, assets: AssetBundle) -> None:
+    def __init__(self, config: GameConfig, assets: AssetBundle, audio: AudioManager) -> None:
         self.config = config
         self.assets = assets
-        self.screen_rect = pygame.Rect(0, 0, config.screen_width, config.screen_height)
+        self.audio = audio
+        self.screen_rect = pygame.Rect(0, 0, config.screen_width, config.screen_height - config.ground_height)
         self.rng = random.Random()
         self.best_score = 0
 
@@ -42,6 +44,7 @@ class GameWorld:
                 glide_window=config.glide_window,
                 glide_gravity_scale=config.glide_gravity_scale,
                 terminal_fall_speed=config.terminal_fall_speed,
+                gravity_shift_cooldown=config.gravity_shift_cooldown,
             ),
             idle_frames=assets.player_idle_frames,
             flap_frames=assets.player_flap_frames,
@@ -67,10 +70,20 @@ class GameWorld:
             return
         self.started = True
         self.player.flap()
-        self.particles.emit_flap_burst(self.player.rect.midleft, count=self.rng.randint(3, 5))
+        self.audio.play_flap()
+        self.particles.emit_feather_burst(self.player.tail_position(), count=self.rng.randint(4, 7))
+
+    def toggle_gravity(self) -> None:
+        if self.game_over:
+            return
+        self.started = True
+        shifted = self.player.shift_gravity()
+        if shifted:
+            self.particles.emit_feather_burst(self.player.rect.center, count=self.rng.randint(6, 9))
 
     def handle_input(self, action: str) -> None:
-        _ = action
+        if action == "gravity_shift":
+            self.toggle_gravity()
 
     def reset(self) -> None:
         self.started = False
@@ -116,8 +129,12 @@ class GameWorld:
             for collectible in self.collectibles:
                 collectible.update(dt, world_speed)
             self.particles.update(dt)
+            self._check_obstacle_passed()
 
-            self.score += collect_player_collectibles(self.player, self.collectibles)
+            gained = collect_player_collectibles(self.player, self.collectibles)
+            if gained > 0:
+                self.audio.play_coin()
+            self.score += gained
             self.collectibles_collected = self.score
             self.obstacles = cull_offscreen_obstacles(self.obstacles)
             self.collectibles = cull_offscreen_collectibles(self.collectibles)
@@ -137,7 +154,15 @@ class GameWorld:
     def _trigger_game_over(self) -> None:
         self.game_over = True
         self.player.kill()
+        self.audio.play_die()
         self.best_score = max(self.best_score, self.score)
+
+    def _check_obstacle_passed(self) -> None:
+        player_x = self.player.hitbox.left
+        for obstacle in self.obstacles:
+            if obstacle.alive and not obstacle.passed_player and obstacle.x + obstacle.width < player_x:
+                obstacle.passed_player = True
+                self.audio.play_pass()
 
     def render(self, surface: pygame.Surface) -> None:
         surface.fill((183, 224, 255))
@@ -155,10 +180,11 @@ class GameWorld:
         self.player.draw(surface)
 
     def _draw_idle_world_hint(self, surface: pygame.Surface) -> None:
-        hint_rect = pygame.Rect(48, self.config.screen_height - 86, 400, 42)
+        text = self.assets.hud_font.render("Space: flap/glide   |   G: gravity shift", True, (236, 241, 249))
+        panel_width = min(self.config.screen_width - 96, text.get_width() + 44)
+        hint_rect = pygame.Rect((self.config.screen_width - panel_width) // 2, self.config.screen_height - 86, panel_width, 42)
         overlay = pygame.Surface(hint_rect.size, pygame.SRCALPHA)
         overlay.fill((10, 14, 24, 145))
         pygame.draw.rect(overlay, (255, 255, 255, 24), overlay.get_rect(), width=1, border_radius=14)
         surface.blit(overlay, hint_rect)
-        text = self.assets.hud_font.render("Tap Space to flap, hold briefly to glide", True, (236, 241, 249))
         surface.blit(text, text.get_rect(midleft=(hint_rect.x + 18, hint_rect.centery)))

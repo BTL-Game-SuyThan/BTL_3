@@ -40,6 +40,10 @@ class PlayScene(Scene):
             _call_if_present(self.game_state, "flap")
             _call_if_present(self.game_state, "handle_input", "flap")
             self._flash_timer = 0.15
+            return
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_g:
+            _call_if_present(self.game_state, "handle_input", "gravity_shift")
 
     def update(self, dt: float) -> None:
         if self._flash_timer > 0.0:

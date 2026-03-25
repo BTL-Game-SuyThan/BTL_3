@@ -7,15 +7,17 @@ from dataclasses import dataclass
 class GameConfig:
     screen_width: int = 1280
     screen_height: int = 720
+    ground_height: int = 120
     target_fps: int = 60
     background_speed_multipliers: tuple[float, float, float] = (0.2, 0.45, 1.0)
     player_start_x: int = 220
     player_start_y: int = 360
     gravity: float = 1700.0
-    flap_velocity: float = -520.0
-    glide_window: float = 0.18
+    flap_velocity: float = -440.0
+    glide_window: float = 0.14
     glide_gravity_scale: float = 0.55
     terminal_fall_speed: float = 660.0
+    gravity_shift_cooldown: float = 0.45
     obstacle_speed: float = 260.0
     obstacle_speed_cap: float = 390.0
     speed_step_per_second: float = 7.0

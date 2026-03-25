@@ -17,6 +17,7 @@ class MenuScene(Scene):
             title="Press Space to Start",
             lines=(
                 "Space: flap / glide",
+                "G: gravity shift",
                 "Collect coins and survive as long as possible",
             ),
             accent=(255, 194, 92),

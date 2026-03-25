@@ -3,6 +3,7 @@ from __future__ import annotations
 import pygame
 
 from src.core.assets import build_placeholder_assets
+from src.core.audio import AudioManager
 from src.core.game_world import GameWorld
 from src.scenes.base import Scene
 from src.scenes.game_over_scene import GameOverScene
@@ -18,7 +19,9 @@ class InfiniteFlyerGame:
         pygame.display.set_caption("Infinite Flyer")
         self.clock = pygame.time.Clock()
         self.assets = build_placeholder_assets(config)
-        self.game_world = GameWorld(config, self.assets)
+        self.audio = AudioManager()
+        self.audio.play_music()
+        self.game_world = GameWorld(config, self.assets, self.audio)
         self.scenes = self._build_scenes()
         self.current_scene: Scene = self.scenes["menu"]
 

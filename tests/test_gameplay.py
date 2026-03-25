@@ -26,6 +26,14 @@ class GameplayTests(unittest.TestCase):
         player.update(0.05)
         self.assertLess(player.position.y, start_y)
 
+    def test_gravity_shift_changes_flap_direction(self) -> None:
+        player = Player((220, 320))
+        start_y = player.position.y
+        player.shift_gravity()
+        player.flap()
+        player.update(0.05)
+        self.assertGreater(player.position.y, start_y)
+
     def test_collectible_scores_once(self) -> None:
         player = Player((220, 320))
         collectible = Collectible((220, 320), speed=0.0)

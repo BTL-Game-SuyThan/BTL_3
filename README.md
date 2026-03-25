@@ -19,18 +19,22 @@ python3 -m pip install pygame
 ## Controls
 
 - `Space`: start, flap, restart
+- `G`: gravity shift during gameplay
 - `Esc`: return to menu or quit from the menu
 
 ## Implemented Gameplay
 
 - 3-layer seamless parallax background
+- Cloud layer integrated into the sky parallax
 - Animated player with flap and fall states
 - Hybrid flap-and-glide control that stays easy to play
+- Gravity-shift mechanic with cooldown
 - Procedural obstacle spawning
 - 3 obstacle families: pipes, moving pillars, laser gates
 - Animated collectibles
 - Score, game over, restart loop
-- Flap particles
+- Feather flap particles
+- Procedural background music + gameplay SFX (flap, pass, death)
 - Difficulty scaling over time
 
 ## Project Structure
@@ -64,17 +68,17 @@ Active in-game assets:
   License: `CC0`
   Usage: collectible animation frames
 
-Included in the repository for future background polish:
+Background assets (actively used in-game):
 
 - Kenney Background Elements pack files under `assets/images/kenney/`
   Source: [Background Elements by Kenney](https://kenney.nl/assets/background-elements)
   License: `CC0`
-  Usage status: downloaded and staged in the repo, but the active parallax background still uses the cleaner procedural version for now
+  Usage status: active for sky/cloud/mountain/ground parallax composition
 
 Notes:
 
-- No external audio is included yet.
-- Obstacles, particles, and the active parallax layers are currently generated in code.
+- Audio is generated procedurally in code (no external sound files).
+- Obstacles are generated in code with updated stylized surfaces.
 
 ## Assignment Checklist
 
@@ -94,7 +98,8 @@ Notes:
 ### Extension Status
 
 - [x] Dynamic obstacles via moving pillars
-- [x] Particle effects on flap
+- [x] Particle effects on flap (feather style)
+- [x] Advanced mechanics (gravity shift)
 - [x] Difficulty scaling over survival time
 
 ### Submission / Polish Status
