@@ -31,10 +31,26 @@ class GameWorld:
         self.rng = random.Random()
         self.best_score = 0
 
-        self.layers = [
-            ParallaxLayer(image=layer, speed_multiplier=multiplier)
-            for layer, multiplier in zip(assets.background_layers, config.background_speed_multipliers, strict=True)
-        ]
+        theme = config.background_theme
+        layer_images = assets.background_sets.get(theme, assets.background_sets.get("legacy", []))
+        num_layers = len(layer_images)
+
+        if num_layers > 0:
+            if num_layers == len(config.background_speed_multipliers):
+                multipliers = config.background_speed_multipliers
+            else:
+                min_m, max_m = 0.05, 1.0
+                if num_layers == 1:
+                    multipliers = [max_m]
+                else:
+                    multipliers = [min_m + (i / (num_layers - 1)) * (max_m - min_m) for i in range(num_layers)]
+            self.layers = [
+                ParallaxLayer(image=img, speed_multiplier=m)
+                for img, m in zip(layer_images, multipliers)
+            ]
+        else:
+            self.layers = []
+
         player_position = (config.player_start_x, config.player_start_y)
         self.player = Player(
             player_position,

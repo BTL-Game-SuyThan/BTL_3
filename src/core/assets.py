@@ -99,6 +99,23 @@ def _tint_surface(surface: pygame.Surface, color: tuple[int, int, int]) -> pygam
     return tinted
 
 
+def _load_theme_backgrounds(config, theme_folder_name: str) -> list[pygame.Surface]:
+    theme_path = ASSET_ROOT / "background" / theme_folder_name
+    if not theme_path.exists():
+        return []
+
+    image_paths = sorted(theme_path.glob("*.png"))
+    layers = []
+    for path in image_paths:
+        img = _load_image(path)
+        if img:
+            scale_factor = config.screen_height / img.get_height()
+            new_width = max(config.screen_width, int(img.get_width() * scale_factor))
+            scaled_img = pygame.transform.smoothscale(img, (new_width, config.screen_height))
+            layers.append(scaled_img)
+    return layers
+
+
 def _build_external_backgrounds(config) -> list[pygame.Surface] | None:
     sky_sheet = _load_image(KENNEY_ROOT / "sky.png")
     clouds_strip = _load_image(KENNEY_ROOT / "clouds1.png")
@@ -189,7 +206,7 @@ def _build_external_collectible_frames() -> list[pygame.Surface] | None:
 
 @dataclass(slots=True)
 class AssetBundle:
-    background_layers: list[pygame.Surface]
+    background_sets: dict[str, list[pygame.Surface]]
     player_idle_frames: list[pygame.Surface]
     player_flap_frames: list[pygame.Surface]
     collectible_frames: list[pygame.Surface]
@@ -198,15 +215,22 @@ class AssetBundle:
 
 
 def build_placeholder_assets(config) -> AssetBundle:
-    background_layers = _build_external_backgrounds(config)
-    player_frames = _build_external_player_frames()
-    collectible_frames = _build_external_collectible_frames()
+    background_sets = {
+        "city_destroyed": _load_theme_backgrounds(config, "city destroyed"),
+        "city_night": _load_theme_backgrounds(config, "city night"),
+        "rural_area": _load_theme_backgrounds(config, "rural area"),
+    }
 
-    if background_layers is None:
+    legacy_bg = _build_external_backgrounds(config)
+    if legacy_bg is None:
         sky = _background_layer((config.screen_width, config.screen_height), (182, 223, 255), (164, 205, 235), 1)
         mid = _background_layer((config.screen_width, config.screen_height), (0, 0, 0, 0), (115, 146, 178), 2)
         ground = _background_layer((config.screen_width, config.screen_height), (0, 0, 0, 0), (86, 120, 90), 3)
-        background_layers = [sky, mid, ground]
+        legacy_bg = [sky, mid, ground]
+    background_sets["legacy"] = legacy_bg
+
+    player_frames = _build_external_player_frames()
+    collectible_frames = _build_external_collectible_frames()
 
     if player_frames is None:
         player_idle = [_player_frame((68, 56), (255, 136, 77), angle) for angle in (0.2, 0.0, -0.2, 0.0)]
@@ -218,7 +242,7 @@ def build_placeholder_assets(config) -> AssetBundle:
         collectible_frames = [_coin_frame(config.collectible_radius if hasattr(config, "collectible_radius") else 20, pulse) for pulse in (0, 1, 2, 1)]
 
     return AssetBundle(
-        background_layers=background_layers,
+        background_sets=background_sets,
         player_idle_frames=player_idle,
         player_flap_frames=player_flap,
         collectible_frames=collectible_frames,

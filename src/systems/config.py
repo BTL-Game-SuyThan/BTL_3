@@ -9,7 +9,8 @@ class GameConfig:
     screen_height: int = 720
     ground_height: int = 120
     target_fps: int = 60
-    background_speed_multipliers: tuple[float, float, float] = (0.2, 0.45, 1.0)
+    background_theme: str = "rural_area"
+    background_speed_multipliers: tuple[float, ...] = (0.05, 0.15, 0.25, 0.45, 1.0)
     player_start_x: int = 220
     player_start_y: int = 360
     gravity: float = 1700.0
