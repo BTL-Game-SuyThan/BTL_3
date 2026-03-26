@@ -9,6 +9,7 @@ import pygame
 
 ASSET_ROOT = Path("assets/images")
 OGA_ROOT = ASSET_ROOT / "oga"
+PIPE_ROOT = ASSET_ROOT / "pipes"
 
 
 def _make_surface(size: tuple[int, int]) -> pygame.Surface:
@@ -56,17 +57,6 @@ def _load_image(path: Path) -> pygame.Surface | None:
     return pygame.image.load(path.as_posix()).convert_alpha()
 
 
-def _slice_sheet(
-    sheet: pygame.Surface, cell_size: tuple[int, int], row: int, columns: int
-) -> list[pygame.Surface]:
-    frames: list[pygame.Surface] = []
-    for col in range(columns):
-        frame = _extract_sheet(sheet, cell_size, row, col)
-        if frame is not None:
-            frames.append(frame)
-    return frames
-
-
 def _extract_sheet(
     sheet: pygame.Surface, cell_size: tuple[int, int], row: int, column: int
 ) -> pygame.Surface | None:
@@ -80,6 +70,17 @@ def _extract_sheet(
     if frame.get_bounding_rect().width == 0:
         return None
     return frame
+
+
+def _slice_sheet(
+    sheet: pygame.Surface, cell_size: tuple[int, int], row: int, columns: int
+) -> list[pygame.Surface]:
+    frames: list[pygame.Surface] = []
+    for col in range(columns):
+        frame = _extract_sheet(sheet, cell_size, row, col)
+        if frame is not None:
+            frames.append(frame)
+    return frames
 
 
 def _scaled_frames(
@@ -114,9 +115,6 @@ def _build_external_player_frames() -> (
     if bird_sheet is None:
         return None
 
-    # idle_frames = _slice_sheet(bird_sheet, (48, 32), row=2, columns=6)
-    # flap_frames = _slice_sheet(bird_sheet, (48, 32), row=6, columns=6)
-    # print(idle_frames)
     idle_frames = [_extract_sheet(bird_sheet, (48, 32), 6, i) for i in range(8)]
     idle_frames = list(filter(lambda x: x is not None, idle_frames))
     flap_frames = [_extract_sheet(bird_sheet, (48, 32), 5, i) for i in range(8)]
@@ -144,6 +142,9 @@ class AssetBundle:
     player_idle_frames: list[pygame.Surface]
     player_flap_frames: list[pygame.Surface]
     collectible_frames: list[pygame.Surface]
+    pipe_img: pygame.Surface | None
+    dynamic_pipe_img: pygame.Surface | None
+    gravity_pipe_img: pygame.Surface | None
     hud_font: pygame.font.Font
     title_font: pygame.font.Font
 
@@ -186,11 +187,18 @@ def build_placeholder_assets(config) -> AssetBundle:
             for pulse in (0, 1, 2, 1)
         ]
 
+    pipe_img = _load_image(PIPE_ROOT / "green_pipe.png")
+    dynamic_pipe_img = _load_image(PIPE_ROOT / "blue_pipe.png")
+    gravity_pipe_img = _load_image(PIPE_ROOT / "red_pipe.png")
+
     return AssetBundle(
         background_sets=background_sets,
         player_idle_frames=player_idle,
         player_flap_frames=player_flap,
         collectible_frames=collectible_frames,
+        pipe_img=pipe_img,
+        dynamic_pipe_img=dynamic_pipe_img,
+        gravity_pipe_img=gravity_pipe_img,
         hud_font=pygame.font.Font(None, 44),
         title_font=pygame.font.Font(None, 72),
     )

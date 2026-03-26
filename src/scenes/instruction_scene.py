@@ -34,8 +34,8 @@ class InstructionScene(Scene):
         instructions = [
             "Press SPACE to flap and stay in the air.",
             "Hold SPACE to glide and slow down your fall.",
-            "Press G to shift gravity and fly on the ceiling!",
-            "Avoid pipes and lasers.",
+            "Pass through red pipes to invert gravity!",
+            "Avoid green and blue pipes.",
             "Collect coins for extra points.",
             "The further you go, the faster it gets!"
         ]

@@ -1,6 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
+
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -22,16 +23,15 @@ class GameConfig:
     obstacle_speed: float = 260.0
     obstacle_speed_cap: float = 390.0
     speed_step_per_second: float = 7.0
-    spawn_interval: float = 1.35
+    spawn_interval: float = 1.5
     min_spawn_interval: float = 0.88
-    gap_min: float = 180.0
+    gap_min: float = 200.0
     gap_max: float = 248.0
     gap_floor: float = 160.0
     gap_ceiling: float = 278.0
     pipe_width: int = 92
-    pillar_width: int = 70
-    laser_width: int = 88
-    laser_warning_duration: float = 0.85
+    dynamic_pipe_width: int = 92
+    gravity_pipe_width: int = 92
     moving_pillar_amplitude: float = 44.0
     moving_pillar_frequency: float = 1.15
     collectible_offset: float = 0.0
@@ -41,10 +41,10 @@ class GameConfig:
     particle_lifetime_min: float = 0.22
     particle_lifetime_max: float = 0.40
     pipe_weight: float = 0.62
-    pillar_weight: float = 0.24
-    laser_weight: float = 0.14
-    pillar_unlock_time: float = 8.0
-    laser_unlock_time: float = 16.0
+    dynamic_pipe_weight: float = 0.24
+    gravity_pipe_weight: float = 0.14
+    dynamic_pipe_unlock_time: float = 8.0
+    gravity_pipe_unlock_time: float = 16.0
     difficulty_ramp_seconds: float = 15.0
     score_per_collectible: int = 1
 

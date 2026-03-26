@@ -1,94 +1,25 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
-import math
-from pathlib import Path
 
 import pygame
 
+
 class ObstacleKind(str, Enum):
     PIPE = "pipe"
-    PILLAR = "pillar"
-    LASER = "laser"
+    DYNAMIC_PIPE = "dynamic_pipe"
+    GRAVITY_PIPE = "gravity_pipe"
 
 
 @dataclass(slots=True)
 class ObstacleConfig:
     pipe_width: int = 92
-    pillar_width: int = 70
-    laser_width: int = 88
-    pipe_color: tuple[int, int, int] = (82, 165, 72)
-    pipe_edge: tuple[int, int, int] = (44, 105, 42)
-    pillar_color: tuple[int, int, int] = (102, 142, 216)
-    pillar_edge: tuple[int, int, int] = (48, 73, 143)
-    laser_color: tuple[int, int, int] = (240, 72, 72)
-    laser_warning: tuple[int, int, int] = (255, 217, 102)
-    laser_thickness: int = 16
-    laser_warning_duration: float = 0.85
-    laser_active_pulse: float = 1.0
-
-
-def _solid_surface(size: tuple[int, int], fill: tuple[int, int, int], edge: tuple[int, int, int], tube: bool = False) -> pygame.Surface:
-    surface = pygame.Surface(size, pygame.SRCALPHA)
-    rect = surface.get_rect()
-    corner = 12 if tube else 8
-    pygame.draw.rect(surface, fill, rect, border_radius=corner)
-    for y in range(rect.height):
-        blend = y / max(1, rect.height - 1)
-        darken = int(24 * blend)
-        row = (max(0, fill[0] - darken), max(0, fill[1] - darken), max(0, fill[2] - darken), 110)
-        pygame.draw.line(surface, row, (2, y), (rect.width - 3, y))
-    pygame.draw.rect(surface, edge, rect, width=4, border_radius=corner)
-    highlight = pygame.Rect(8, 8, max(4, rect.width // 4), max(6, rect.height - 16))
-    pygame.draw.rect(surface, (255, 255, 255, 42), highlight, border_radius=8)
-    band_y = rect.height // 4
-    pygame.draw.rect(surface, (*edge, 150), pygame.Rect(4, band_y, rect.width - 8, 8), border_radius=4)
-    pygame.draw.rect(surface, (*edge, 150), pygame.Rect(4, rect.height - band_y - 8, rect.width - 8, 8), border_radius=4)
-    if tube:
-        cap_height = min(22, rect.height // 6 + 8)
-        cap = pygame.Rect(-4, 0, rect.width + 8, cap_height)
-        pygame.draw.rect(surface, fill, cap, border_radius=10)
-        pygame.draw.rect(surface, edge, cap, width=4, border_radius=10)
-    return surface
-
-
-def make_pipe_frames(width: int = 92, height: int = 200) -> list[pygame.Surface]:
-    obstacle_dir = Path("assets/images/obstacles")
-    tree_paths = sorted(obstacle_dir.glob("Thick Spruce Tree - GREEN - *.png"))
-    frames: list[pygame.Surface] = []
-    for path in tree_paths:
-        try:
-            frame = pygame.image.load(path.as_posix()).convert_alpha()
-        except pygame.error:
-            continue
-        if frame.get_width() == 0 or frame.get_height() == 0:
-            continue
-        frames.append(frame)
-    if frames:
-        return frames
-    return [_solid_surface((width, height), (82, 165, 72), (44, 105, 42), tube=True)]
-
-
-def make_pillar_frames(width: int = 70, height: int = 220) -> list[pygame.Surface]:
-    obstacle_dir = Path("assets/images/obstacles/moving")
-    tree_paths = sorted(obstacle_dir.glob("Small Pine Tree - YELLOW - *.png"))
-    frames: list[pygame.Surface] = []
-    for path in tree_paths:
-        try:
-            frame = pygame.image.load(path.as_posix()).convert_alpha()
-        except pygame.error:
-            continue
-        if frame.get_width() == 0 or frame.get_height() == 0:
-            continue
-        frames.append(frame)
-    if frames:
-        return frames
-    return [_solid_surface((width, height), (102, 142, 216), (48, 73, 143), tube=False)]
-
-
-def make_laser_frames(width: int = 88, height: int = 170) -> list[pygame.Surface]:
-    return [_solid_surface((width, height), (240, 72, 72), (135, 31, 31), tube=False)]
+    dynamic_pipe_width: int = 92
+    gravity_pipe_width: int = 92
+    moving_pillar_amplitude: float = 44.0
+    moving_pillar_frequency: float = 1.15
 
 
 class Obstacle:
@@ -101,17 +32,11 @@ class Obstacle:
         gap_size: float,
         scroll_speed: float,
         width: int,
-        top_surface: pygame.Surface | None = None,
-        bottom_surface: pygame.Surface | None = None,
+        pipe_img: pygame.Surface,
         config: ObstacleConfig | None = None,
         moving: bool = False,
         motion_amplitude: float = 0.0,
         motion_frequency: float = 0.0,
-        laser_warning_duration: float | None = None,
-        top_frames: list[pygame.Surface] | None = None,
-        bottom_frames: list[pygame.Surface] | None = None,
-        animation_fps: float = 12.0,
-        animation_offset: float = 0.0,
     ) -> None:
         self.kind = kind
         self.x = float(x)
@@ -128,67 +53,36 @@ class Obstacle:
         self.alive = True
         self.passed_player = False
         self.config = config or ObstacleConfig()
-        self.top_surface = top_surface
-        self.bottom_surface = bottom_surface
-        self.warning_remaining = laser_warning_duration if laser_warning_duration is not None else self.config.laser_warning_duration
-        self.laser_active = kind != ObstacleKind.LASER
-        self.laser_pulse_elapsed = 0.0
-        self.top_frames = top_frames or []
-        self.bottom_frames = bottom_frames or []
-        self.animation_fps = max(1.0, animation_fps)
-        self.animation_offset = animation_offset
-        self.top_frame_bounds = [frame.get_bounding_rect(min_alpha=20) for frame in self.top_frames]
-        self.bottom_frame_bounds = [frame.get_bounding_rect(min_alpha=20) for frame in self.bottom_frames]
-        self.top_fallback_bounds = (
-            self.top_surface.get_bounding_rect(min_alpha=20)
-            if self.top_surface is not None
-            else None
+
+        # Prepare scaled images
+        scale_factor = self.width / pipe_img.get_width()
+        scaled_w = self.width
+        scaled_h = int(pipe_img.get_height() * scale_factor)
+        self.bottom_source = pygame.transform.smoothscale(
+            pipe_img, (scaled_w, scaled_h)
         )
-        self.bottom_fallback_bounds = (
-            self.bottom_surface.get_bounding_rect(min_alpha=20)
-            if self.bottom_surface is not None
-            else None
-        )
+        self.top_source = pygame.transform.rotate(self.bottom_source, 180)
+
         self._build_rects()
 
     def _build_rects(self) -> None:
         gap_top = self.gap_center_y - self.gap_size / 2
         gap_bottom = self.gap_center_y + self.gap_size / 2
         self.top_rect = pygame.Rect(int(self.x), 0, self.width, max(0, int(gap_top)))
-        self.bottom_rect = pygame.Rect(int(self.x), int(gap_bottom), self.width, max(0, int(self.screen_height - gap_bottom)))
-        self.laser_rect = pygame.Rect(int(self.x), int(self.gap_center_y - self.config.laser_thickness / 2), self.width, self.config.laser_thickness)
-        self.laser_post_left = pygame.Rect(int(self.x), int(gap_top) - 8, 12, int(self.gap_size) + 16)
-        self.laser_post_right = pygame.Rect(int(self.x + self.width - 12), int(gap_top) - 8, 12, int(self.gap_size) + 16)
+        self.bottom_rect = pygame.Rect(
+            int(self.x),
+            int(gap_bottom),
+            self.width,
+            max(0, int(self.screen_height - gap_bottom)),
+        )
 
     @property
     def collision_rects(self) -> list[pygame.Rect]:
-        if self.kind == ObstacleKind.LASER:
-            if self.laser_active:
-                return [self.laser_rect]
-            return []
-        top_surface, top_bounds = self._animated_surface_and_bounds(
-            self.top_frames,
-            self.top_frame_bounds,
-            self.top_surface,
-            self.top_fallback_bounds,
-        )
-        bottom_surface, bottom_bounds = self._animated_surface_and_bounds(
-            self.bottom_frames,
-            self.bottom_frame_bounds,
-            self.bottom_surface,
-            self.bottom_fallback_bounds,
-        )
-        top_collision = self._collision_rect_from_alpha(
-            self.top_rect, top_surface, top_bounds
-        )
-        bottom_collision = self._collision_rect_from_alpha(
-            self.bottom_rect, bottom_surface, bottom_bounds
-        )
-        rects: list[pygame.Rect] = []
-        if top_collision is not None:
-            rects.append(top_collision)
-        if bottom_collision is not None:
-            rects.append(bottom_collision)
+        rects = []
+        if self.top_rect.height > 0:
+            rects.append(self.top_rect)
+        if self.bottom_rect.height > 0:
+            rects.append(self.bottom_rect)
         return rects
 
     def update(self, dt: float, world_speed: float) -> None:
@@ -196,100 +90,40 @@ class Obstacle:
             return
         self.elapsed += dt
         self.x -= world_speed * dt
-        if self.kind == ObstacleKind.PILLAR and self.moving:
-            offset = math.sin(self.elapsed * self.motion_frequency * math.tau) * self.motion_amplitude
+        if self.moving:
+            offset = (
+                math.sin(self.elapsed * self.motion_frequency * math.tau)
+                * self.motion_amplitude
+            )
             self.gap_center_y = self.base_gap_center_y + offset
-        if self.kind == ObstacleKind.LASER:
-            self.laser_pulse_elapsed += dt
-            if self.warning_remaining > 0:
-                self.warning_remaining = max(0.0, self.warning_remaining - dt)
-                self.laser_active = self.warning_remaining <= 0
+
         self._build_rects()
-        if self.x + self.width < -20:
+        if self.x + self.width < -50:
             self.alive = False
 
     def draw(self, surface: pygame.Surface) -> None:
         if not self.alive:
             return
-        if self.kind == ObstacleKind.LASER:
-            self._draw_laser(surface)
-        else:
-            self._draw_solid(surface)
 
-    def _draw_solid(self, surface: pygame.Surface) -> None:
-        top_surface, _ = self._animated_surface_and_bounds(
-            self.top_frames,
-            self.top_frame_bounds,
-            self.top_surface,
-            self.top_fallback_bounds,
-        )
-        bottom_surface, _ = self._animated_surface_and_bounds(
-            self.bottom_frames,
-            self.bottom_frame_bounds,
-            self.bottom_surface,
-            self.bottom_fallback_bounds,
-        )
-        if top_surface is None or bottom_surface is None:
-            return
-        top = pygame.transform.scale(top_surface, (self.width, max(1, self.top_rect.height)))
-        bottom = pygame.transform.scale(bottom_surface, (self.width, max(1, self.bottom_rect.height)))
-        surface.blit(top, self.top_rect)
-        surface.blit(bottom, self.bottom_rect)
+        # Draw Top Pipe
+        if self.top_rect.height > 0:
+            # Head is at the bottom of top_source.
+            # We need the bottom 'height' pixels of top_source.
+            h = self.top_rect.height
+            src_h = self.top_source.get_height()
+            crop_h = min(h, src_h)
+            area = pygame.Rect(0, src_h - crop_h, self.width, crop_h)
+            # If obstacle is taller than source, it might look cut off at the top,
+            # but per requirements we just crop.
+            dest_y = self.top_rect.bottom - crop_h
+            surface.blit(self.top_source, (self.top_rect.x, dest_y), area)
 
-    def _animated_surface_and_bounds(
-        self,
-        frames: list[pygame.Surface],
-        bounds: list[pygame.Rect],
-        fallback: pygame.Surface | None,
-        fallback_bounds: pygame.Rect | None,
-    ) -> tuple[pygame.Surface | None, pygame.Rect | None]:
-        if not frames:
-            return fallback, fallback_bounds
-        frame_index = self._current_frame_index(len(frames))
-        return frames[frame_index], bounds[frame_index]
-
-    def _current_frame_index(self, frame_count: int) -> int:
-        return int((self.elapsed + self.animation_offset) * self.animation_fps) % frame_count
-
-    def _collision_rect_from_alpha(
-        self,
-        draw_rect: pygame.Rect,
-        sprite: pygame.Surface | None,
-        opaque_bounds: pygame.Rect | None,
-    ) -> pygame.Rect | None:
-        if sprite is None or opaque_bounds is None or draw_rect.width <= 0 or draw_rect.height <= 0:
-            return None
-        if opaque_bounds.width <= 0 or opaque_bounds.height <= 0:
-            return None
-        scale_x = draw_rect.width / max(1, sprite.get_width())
-        scale_y = draw_rect.height / max(1, sprite.get_height())
-        rect = pygame.Rect(
-            draw_rect.x + int(opaque_bounds.x * scale_x),
-            draw_rect.y + int(opaque_bounds.y * scale_y),
-            max(1, int(opaque_bounds.width * scale_x)),
-            max(1, int(opaque_bounds.height * scale_y)),
-        )
-        horizontal_shrink = max(2, rect.width // 8)
-        rect.inflate_ip(-horizontal_shrink, 0)
-        return rect.clip(draw_rect)
-
-    def _draw_laser(self, surface: pygame.Surface) -> None:
-        color = self.config.laser_color if self.laser_active else self.config.laser_warning
-        pulse = 1.0 + 0.08 * math.sin(self.laser_pulse_elapsed * 9.0)
-        beam = pygame.Surface((self.width, self.config.laser_thickness), pygame.SRCALPHA)
-        pygame.draw.rect(beam, color, beam.get_rect(), border_radius=4)
-        pygame.draw.rect(beam, (255, 255, 255, 80), beam.get_rect().inflate(-8, -6), width=2, border_radius=4)
-        if self.laser_active:
-            glow = pygame.transform.smoothscale(beam, (int(self.width * pulse), self.config.laser_thickness))
-            glow_rect = glow.get_rect(center=self.laser_rect.center)
-            surface.blit(glow, glow_rect)
-        else:
-            surface.blit(beam, self.laser_rect)
-        if self.laser_active:
-            surface.blit(beam, self.laser_rect)
-        left_post = pygame.Surface((12, self.laser_post_left.height), pygame.SRCALPHA)
-        right_post = pygame.Surface((12, self.laser_post_right.height), pygame.SRCALPHA)
-        pygame.draw.rect(left_post, (112, 112, 124), left_post.get_rect(), border_radius=4)
-        pygame.draw.rect(right_post, (112, 112, 124), right_post.get_rect(), border_radius=4)
-        surface.blit(left_post, self.laser_post_left)
-        surface.blit(right_post, self.laser_post_right)
+        # Draw Bottom Pipe
+        if self.bottom_rect.height > 0:
+            # Head is at the top of bottom_source.
+            # We need the top 'height' pixels of bottom_source.
+            h = self.bottom_rect.height
+            src_h = self.bottom_source.get_height()
+            crop_h = min(h, src_h)
+            area = pygame.Rect(0, 0, self.width, crop_h)
+            surface.blit(self.bottom_source, (self.bottom_rect.x, self.bottom_rect.y), area)

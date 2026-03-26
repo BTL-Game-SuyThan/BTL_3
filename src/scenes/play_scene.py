@@ -40,9 +40,6 @@ class PlayScene(Scene):
             _call_if_present(self.game_state, "handle_input", "flap")
             return
 
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_g:
-            _call_if_present(self.game_state, "handle_input", "gravity_shift")
-
     def update(self, dt: float) -> None:
         _call_if_present(self.game_state, "update", dt)
 

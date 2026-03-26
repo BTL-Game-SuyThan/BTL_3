@@ -9,7 +9,7 @@ from src.core.assets import AssetBundle
 from src.core.audio import AudioManager
 from src.core.parallax import ParallaxLayer
 from src.entities.collectibles import Collectible
-from src.entities.obstacles import Obstacle
+from src.entities.obstacles import Obstacle, ObstacleKind
 from src.entities.particles import ParticleSystem
 from src.entities.player import Player, PlayerConfig
 from src.systems.cleanup import cull_offscreen_collectibles, cull_offscreen_obstacles
@@ -51,7 +51,9 @@ class GameWorld:
             idle_frames=assets.player_idle_frames,
             flap_frames=assets.player_flap_frames,
         )
-        self.spawner = Spawner(config, collectible_frames=assets.collectible_frames)
+        self.spawner = Spawner(
+            config, collectible_frames=assets.collectible_frames, assets=assets
+        )
         self.difficulty = DifficultyManager(config)
         self.particles = ParticleSystem()
 
@@ -136,8 +138,8 @@ class GameWorld:
             )
 
     def handle_input(self, action: str) -> None:
-        if action == "gravity_shift":
-            self.toggle_gravity()
+        # User manual gravity shift is removed per requirement
+        pass
 
     def reset(self) -> None:
         self.started = False
@@ -240,6 +242,8 @@ class GameWorld:
             ):
                 obstacle.passed_player = True
                 self.audio.play_pass()
+                if obstacle.kind == ObstacleKind.GRAVITY_PIPE:
+                    self.toggle_gravity()
 
     def render_background(self, surface: pygame.Surface) -> None:
         surface.fill((183, 224, 255))
