@@ -19,7 +19,7 @@ class ParallaxLayer:
 
     def draw(self, surface: pygame.Surface) -> None:
         width = self.image.get_width()
-        first_x = -math.floor(self.offset_x)
+        first_x = -int(self.offset_x)
         second_x = first_x + width
         surface.blit(self.image, (first_x, self.y))
         surface.blit(self.image, (second_x, self.y))

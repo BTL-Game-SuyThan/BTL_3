@@ -213,6 +213,9 @@ class AssetBundle:
     hud_font: pygame.font.Font
     title_font: pygame.font.Font
 
+    def get_background_layers(self, theme: str) -> list[pygame.Surface]:
+        return self.background_sets.get(theme, self.background_sets.get("rural_area", []))
+
 
 def build_placeholder_assets(config) -> AssetBundle:
     background_sets = {

@@ -7,8 +7,10 @@ from src.core.audio import AudioManager
 from src.core.game_world import GameWorld
 from src.scenes.base import Scene
 from src.scenes.game_over_scene import GameOverScene
+from src.scenes.instruction_scene import InstructionScene
 from src.scenes.menu_scene import MenuScene
 from src.scenes.play_scene import PlayScene
+from src.scenes.settings_scene import SettingsScene
 from src.systems.config import GameConfig
 
 
@@ -30,6 +32,8 @@ class InfiniteFlyerGame:
             "menu": MenuScene(self.game_world),
             "play": PlayScene(self.game_world),
             "game_over": GameOverScene(self.game_world),
+            "settings": SettingsScene(self.game_world),
+            "instructions": InstructionScene(self.game_world),
         }
 
     def _switch_to(self, name: str) -> None:
