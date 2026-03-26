@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import math
+from pathlib import Path
 
 import pygame
 
@@ -53,10 +54,36 @@ def _solid_surface(size: tuple[int, int], fill: tuple[int, int, int], edge: tupl
 
 
 def make_pipe_frames(width: int = 92, height: int = 200) -> list[pygame.Surface]:
+    obstacle_dir = Path("assets/images/obstacles")
+    tree_paths = sorted(obstacle_dir.glob("Thick Spruce Tree - GREEN - *.png"))
+    frames: list[pygame.Surface] = []
+    for path in tree_paths:
+        try:
+            frame = pygame.image.load(path.as_posix()).convert_alpha()
+        except pygame.error:
+            continue
+        if frame.get_width() == 0 or frame.get_height() == 0:
+            continue
+        frames.append(frame)
+    if frames:
+        return frames
     return [_solid_surface((width, height), (82, 165, 72), (44, 105, 42), tube=True)]
 
 
 def make_pillar_frames(width: int = 70, height: int = 220) -> list[pygame.Surface]:
+    obstacle_dir = Path("assets/images/obstacles/moving")
+    tree_paths = sorted(obstacle_dir.glob("Small Pine Tree - YELLOW - *.png"))
+    frames: list[pygame.Surface] = []
+    for path in tree_paths:
+        try:
+            frame = pygame.image.load(path.as_posix()).convert_alpha()
+        except pygame.error:
+            continue
+        if frame.get_width() == 0 or frame.get_height() == 0:
+            continue
+        frames.append(frame)
+    if frames:
+        return frames
     return [_solid_surface((width, height), (102, 142, 216), (48, 73, 143), tube=False)]
 
 
@@ -81,6 +108,10 @@ class Obstacle:
         motion_amplitude: float = 0.0,
         motion_frequency: float = 0.0,
         laser_warning_duration: float | None = None,
+        top_frames: list[pygame.Surface] | None = None,
+        bottom_frames: list[pygame.Surface] | None = None,
+        animation_fps: float = 12.0,
+        animation_offset: float = 0.0,
     ) -> None:
         self.kind = kind
         self.x = float(x)
@@ -102,6 +133,22 @@ class Obstacle:
         self.warning_remaining = laser_warning_duration if laser_warning_duration is not None else self.config.laser_warning_duration
         self.laser_active = kind != ObstacleKind.LASER
         self.laser_pulse_elapsed = 0.0
+        self.top_frames = top_frames or []
+        self.bottom_frames = bottom_frames or []
+        self.animation_fps = max(1.0, animation_fps)
+        self.animation_offset = animation_offset
+        self.top_frame_bounds = [frame.get_bounding_rect(min_alpha=20) for frame in self.top_frames]
+        self.bottom_frame_bounds = [frame.get_bounding_rect(min_alpha=20) for frame in self.bottom_frames]
+        self.top_fallback_bounds = (
+            self.top_surface.get_bounding_rect(min_alpha=20)
+            if self.top_surface is not None
+            else None
+        )
+        self.bottom_fallback_bounds = (
+            self.bottom_surface.get_bounding_rect(min_alpha=20)
+            if self.bottom_surface is not None
+            else None
+        )
         self._build_rects()
 
     def _build_rects(self) -> None:
@@ -119,7 +166,30 @@ class Obstacle:
             if self.laser_active:
                 return [self.laser_rect]
             return []
-        return [self.top_rect, self.bottom_rect]
+        top_surface, top_bounds = self._animated_surface_and_bounds(
+            self.top_frames,
+            self.top_frame_bounds,
+            self.top_surface,
+            self.top_fallback_bounds,
+        )
+        bottom_surface, bottom_bounds = self._animated_surface_and_bounds(
+            self.bottom_frames,
+            self.bottom_frame_bounds,
+            self.bottom_surface,
+            self.bottom_fallback_bounds,
+        )
+        top_collision = self._collision_rect_from_alpha(
+            self.top_rect, top_surface, top_bounds
+        )
+        bottom_collision = self._collision_rect_from_alpha(
+            self.bottom_rect, bottom_surface, bottom_bounds
+        )
+        rects: list[pygame.Rect] = []
+        if top_collision is not None:
+            rects.append(top_collision)
+        if bottom_collision is not None:
+            rects.append(bottom_collision)
+        return rects
 
     def update(self, dt: float, world_speed: float) -> None:
         if not self.alive:
@@ -147,12 +217,61 @@ class Obstacle:
             self._draw_solid(surface)
 
     def _draw_solid(self, surface: pygame.Surface) -> None:
-        if self.top_surface is None or self.bottom_surface is None:
+        top_surface, _ = self._animated_surface_and_bounds(
+            self.top_frames,
+            self.top_frame_bounds,
+            self.top_surface,
+            self.top_fallback_bounds,
+        )
+        bottom_surface, _ = self._animated_surface_and_bounds(
+            self.bottom_frames,
+            self.bottom_frame_bounds,
+            self.bottom_surface,
+            self.bottom_fallback_bounds,
+        )
+        if top_surface is None or bottom_surface is None:
             return
-        top = pygame.transform.scale(self.top_surface, (self.width, max(1, self.top_rect.height)))
-        bottom = pygame.transform.scale(self.bottom_surface, (self.width, max(1, self.bottom_rect.height)))
+        top = pygame.transform.scale(top_surface, (self.width, max(1, self.top_rect.height)))
+        bottom = pygame.transform.scale(bottom_surface, (self.width, max(1, self.bottom_rect.height)))
         surface.blit(top, self.top_rect)
         surface.blit(bottom, self.bottom_rect)
+
+    def _animated_surface_and_bounds(
+        self,
+        frames: list[pygame.Surface],
+        bounds: list[pygame.Rect],
+        fallback: pygame.Surface | None,
+        fallback_bounds: pygame.Rect | None,
+    ) -> tuple[pygame.Surface | None, pygame.Rect | None]:
+        if not frames:
+            return fallback, fallback_bounds
+        frame_index = self._current_frame_index(len(frames))
+        return frames[frame_index], bounds[frame_index]
+
+    def _current_frame_index(self, frame_count: int) -> int:
+        return int((self.elapsed + self.animation_offset) * self.animation_fps) % frame_count
+
+    def _collision_rect_from_alpha(
+        self,
+        draw_rect: pygame.Rect,
+        sprite: pygame.Surface | None,
+        opaque_bounds: pygame.Rect | None,
+    ) -> pygame.Rect | None:
+        if sprite is None or opaque_bounds is None or draw_rect.width <= 0 or draw_rect.height <= 0:
+            return None
+        if opaque_bounds.width <= 0 or opaque_bounds.height <= 0:
+            return None
+        scale_x = draw_rect.width / max(1, sprite.get_width())
+        scale_y = draw_rect.height / max(1, sprite.get_height())
+        rect = pygame.Rect(
+            draw_rect.x + int(opaque_bounds.x * scale_x),
+            draw_rect.y + int(opaque_bounds.y * scale_y),
+            max(1, int(opaque_bounds.width * scale_x)),
+            max(1, int(opaque_bounds.height * scale_y)),
+        )
+        horizontal_shrink = max(2, rect.width // 8)
+        rect.inflate_ip(-horizontal_shrink, 0)
+        return rect.clip(draw_rect)
 
     def _draw_laser(self, surface: pygame.Surface) -> None:
         color = self.config.laser_color if self.laser_active else self.config.laser_warning

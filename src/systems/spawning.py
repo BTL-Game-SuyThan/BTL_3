@@ -38,7 +38,9 @@ class Spawner:
         self.config = config or GameConfig()
         self.cooldown = self.config.spawn_interval
         self.pipe_frames = make_pipe_frames(self.config.pipe_width, 220)
+        self.pipe_top_frames = [pygame.transform.flip(frame, False, True) for frame in self.pipe_frames]
         self.pillar_frames = make_pillar_frames(self.config.pillar_width, 240)
+        self.pillar_top_frames = [pygame.transform.flip(frame, False, True) for frame in self.pillar_frames]
         self.laser_frames = make_laser_frames(self.config.laser_width, 180)
         self.collectible_frames = collectible_frames or make_collectible_frames(
             CollectibleConfig(points=self.config.collectible_points)
@@ -74,6 +76,8 @@ class Spawner:
         x = float(screen_rect.width + 10)
 
         if kind == ObstacleKind.PIPE:
+            pipe_frame = self.pipe_frames[rng.randrange(len(self.pipe_frames))]
+            phase = rng.random()
             obstacle = Obstacle(
                 kind=kind,
                 x=x,
@@ -82,11 +86,17 @@ class Spawner:
                 gap_size=gap_size,
                 scroll_speed=state.scroll_speed,
                 width=self.config.pipe_width,
-                top_surface=self.pipe_frames[0],
-                bottom_surface=self.pipe_frames[0],
+                top_surface=pygame.transform.flip(pipe_frame, False, True),
+                bottom_surface=pipe_frame,
+                top_frames=self.pipe_top_frames,
+                bottom_frames=self.pipe_frames,
+                animation_fps=14.0,
+                animation_offset=phase,
                 config=self.obstacle_config,
             )
         elif kind == ObstacleKind.PILLAR:
+            pillar_frame = self.pillar_frames[rng.randrange(len(self.pillar_frames))]
+            phase = rng.random()
             obstacle = Obstacle(
                 kind=kind,
                 x=x,
@@ -95,8 +105,12 @@ class Spawner:
                 gap_size=gap_size,
                 scroll_speed=state.scroll_speed,
                 width=self.config.pillar_width,
-                top_surface=self.pillar_frames[0],
-                bottom_surface=self.pillar_frames[0],
+                top_surface=pygame.transform.flip(pillar_frame, False, True),
+                bottom_surface=pillar_frame,
+                top_frames=self.pillar_top_frames,
+                bottom_frames=self.pillar_frames,
+                animation_fps=12.0,
+                animation_offset=phase,
                 config=self.obstacle_config,
                 moving=True,
                 motion_amplitude=self.config.moving_pillar_amplitude,

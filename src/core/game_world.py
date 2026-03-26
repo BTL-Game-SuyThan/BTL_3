@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import random
 
 import pygame
@@ -61,6 +62,7 @@ class GameWorld:
         self.obstacles: list[Obstacle] = []
         self.collectibles: list[Collectible] = []
         self.current_difficulty = self.difficulty.update(0.0)
+        self.water_wave_phase = 0.0
         self.reset()
 
     def _load_high_score(self) -> int:
@@ -151,6 +153,7 @@ class GameWorld:
         self.current_difficulty = self.difficulty.update(0.0)
         for layer in self.layers:
             layer.offset_x = 0.0
+        self.water_wave_phase = 0.0
 
     def update_background(self, dt: float) -> None:
         # For menu/UI background animation
@@ -172,6 +175,7 @@ class GameWorld:
             self.current_difficulty = self.difficulty.update(dt)
         else:
             self.current_difficulty = self.difficulty.update(0.0)
+        self.water_wave_phase += dt * 2.6
 
         world_speed = (
             self.current_difficulty.scroll_speed
@@ -241,6 +245,48 @@ class GameWorld:
         surface.fill((183, 224, 255))
         for layer in self.layers:
             layer.draw(surface)
+        if self.config.background_theme == "rural_area":
+            self._draw_river_water_effect(surface)
+
+    def _draw_river_water_effect(self, surface: pygame.Surface) -> None:
+        river_top = int(self.config.screen_height * 0.72)
+        river_bottom = int(self.config.screen_height * 0.92)
+        river_height = max(1, river_bottom - river_top)
+        water_overlay = pygame.Surface((self.config.screen_width, river_height), pygame.SRCALPHA)
+
+        # Darker near the foreground and brighter near the horizon to suggest depth.
+        for y in range(river_height):
+            t = y / max(1, river_height - 1)
+            alpha = int(40 + t * 52)
+            color = (
+                int(88 - t * 24),
+                int(152 - t * 34),
+                int(198 - t * 26),
+                alpha,
+            )
+            pygame.draw.line(water_overlay, color, (0, y), (self.config.screen_width, y))
+
+        width = self.config.screen_width
+        for band, intensity in ((8, 78), (19, 55), (31, 34)):
+            points: list[tuple[int, int]] = []
+            for x in range(0, width + 12, 12):
+                y = int(
+                    river_height * 0.32
+                    + band
+                    + 7 * math.sin(x * 0.024 + self.water_wave_phase * (1.3 + band * 0.03))
+                )
+                points.append((x, y))
+            if len(points) >= 2:
+                pygame.draw.lines(water_overlay, (220, 243, 255, intensity), False, points, 2)
+
+        # Tiny moving highlights to break the flat strip look.
+        shimmer_speed = 170
+        for i in range(14):
+            x = int((i * 118 + self.water_wave_phase * shimmer_speed) % (width + 120)) - 60
+            y = int(river_height * (0.24 + (i % 5) * 0.11))
+            pygame.draw.ellipse(water_overlay, (235, 250, 255, 38), (x, y, 40, 6))
+
+        surface.blit(water_overlay, (0, river_top))
 
     def render(self, surface: pygame.Surface) -> None:
         self.render_background(surface)

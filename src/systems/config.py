@@ -12,7 +12,7 @@ class GameConfig:
     background_theme: str = "rural_area"
     background_speed_multipliers: tuple[float, ...] = (0.05, 0.15, 0.25, 0.45, 1.0)
     player_start_x: int = 220
-    player_start_y: int = 360
+    player_start_y: int = 320
     gravity: float = 1700.0
     flap_velocity: float = -440.0
     glide_window: float = 0.14

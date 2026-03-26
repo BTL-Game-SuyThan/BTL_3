@@ -55,4 +55,3 @@ class PromptCard:
 
         rect = card.get_rect(center=center)
         surface.blit(card, rect)
-
