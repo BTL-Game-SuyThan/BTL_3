@@ -152,6 +152,12 @@ class GameWorld:
         for layer in self.layers:
             layer.offset_x = 0.0
 
+    def update_background(self, dt: float) -> None:
+        # For menu/UI background animation
+        world_speed = self.config.obstacle_speed * 0.2
+        for layer in self.layers:
+            layer.update(dt, world_speed)
+
     def update(self, dt: float) -> None:
         self.player.set_glide_input(bool(pygame.key.get_pressed()[pygame.K_SPACE]))
 
@@ -170,13 +176,14 @@ class GameWorld:
         world_speed = (
             self.current_difficulty.scroll_speed
             if self.started
-            else self.config.obstacle_speed * 0.2
+            else 0.0
         )
 
         for layer in self.layers:
             layer.update(dt, world_speed)
 
-        self.player.update(dt)
+        if self.started or self.game_over:
+            self.player.update(dt)
 
         if self.started:
             self._spawn_entities(dt)

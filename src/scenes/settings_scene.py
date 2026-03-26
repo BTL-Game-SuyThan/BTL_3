@@ -32,7 +32,7 @@ class SettingsScene(Scene):
             self.request_scene("menu")
 
     def update(self, dt: float) -> None:
-        self.game_state.update(dt)
+        self.game_state.update_background(dt)
 
     def render(self, surface: pygame.Surface) -> None:
         self.game_state.render_background(surface)

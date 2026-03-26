@@ -28,7 +28,6 @@ class PlayScene(Scene):
     def __init__(self, game_state) -> None:
         super().__init__(game_state=game_state)
         self.hud = HUD()
-        self._flash_timer = 0.0
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -39,16 +38,12 @@ class PlayScene(Scene):
             _call_if_present(self.game_state, "start")
             _call_if_present(self.game_state, "flap")
             _call_if_present(self.game_state, "handle_input", "flap")
-            self._flash_timer = 0.15
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_g:
             _call_if_present(self.game_state, "handle_input", "gravity_shift")
 
     def update(self, dt: float) -> None:
-        if self._flash_timer > 0.0:
-            self._flash_timer = max(0.0, self._flash_timer - dt)
-
         _call_if_present(self.game_state, "update", dt)
 
         if _read_attr(self.game_state, "game_over", "is_game_over", default=False):
@@ -63,4 +58,4 @@ class PlayScene(Scene):
 
         score = _read_attr(self.game_state, "score", default=0)
         best = _read_attr(self.game_state, "best_score", "high_score", default=None)
-        self.hud.draw(surface, score=score, best_score=best, flash=self._flash_timer > 0.0)
+        self.hud.draw(surface, score=score, best_score=best)

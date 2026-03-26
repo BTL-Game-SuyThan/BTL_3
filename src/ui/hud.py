@@ -10,14 +10,7 @@ class HUD:
         self.score_font = get_font(26, bold=True)
         self.info_font = get_font(18, bold=False)
 
-    def draw(
-        self,
-        surface: pygame.Surface,
-        *,
-        score: int,
-        best_score=None,
-        flash: bool = False,
-    ) -> None:
+    def draw(self, surface: pygame.Surface, *, score: int, best_score=None) -> None:
         width, _ = surface.get_size()
 
         # Panel background with rounded corners
@@ -45,10 +38,3 @@ class HUD:
                 color=(184, 198, 226),
                 pos=(28, 52),
             )
-
-        # if flash:
-        #     # More subtle flash: use a gradient or just lower the alpha even more
-        #     glow = pygame.Surface((width, 40), pygame.SRCALPHA)
-        #     # Use a very low alpha for a subtle hint of movement/feedback
-        #     glow.fill((255, 214, 115, 15))
-        #     surface.blit(glow, (0, 0))

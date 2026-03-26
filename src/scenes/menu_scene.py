@@ -34,7 +34,7 @@ class MenuScene(Scene):
 
     def update(self, dt: float) -> None:
         if self.game_state:
-            self.game_state.update(dt)
+            self.game_state.update_background(dt)
 
     def render(self, surface: pygame.Surface) -> None:
         if self.game_state:
