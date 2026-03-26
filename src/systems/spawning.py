@@ -43,13 +43,6 @@ class Spawner:
         self.collectible_frames = collectible_frames or make_collectible_frames(
             CollectibleConfig(points=self.config.collectible_points)
         )
-        self.obstacle_config = ObstacleConfig(
-            pipe_width=self.config.pipe_width,
-            dynamic_pipe_width=self.config.dynamic_pipe_width,
-            gravity_pipe_width=self.config.gravity_pipe_width,
-            moving_pillar_amplitude=self.config.moving_pillar_amplitude,
-            moving_pillar_frequency=self.config.moving_pillar_frequency,
-        )
 
     def reset(self) -> None:
         self.cooldown = self.config.spawn_interval
@@ -78,6 +71,15 @@ class Spawner:
 
         # Default to green pipe if assets missing
         pipe_img = self.assets.pipe_img if self.assets else None
+        
+        # Build dynamic obstacle config based on current game config
+        obs_config = ObstacleConfig(
+            pipe_width=self.config.pipe_width,
+            dynamic_pipe_width=self.config.dynamic_pipe_width,
+            gravity_pipe_width=self.config.gravity_pipe_width,
+            moving_pillar_amplitude=self.config.moving_pillar_amplitude,
+            moving_pillar_frequency=self.config.moving_pillar_frequency,
+        )
 
         if kind == ObstacleKind.DYNAMIC_PIPE:
             if self.assets and self.assets.dynamic_pipe_img:
@@ -91,7 +93,7 @@ class Spawner:
                 scroll_speed=state.scroll_speed,
                 width=self.config.dynamic_pipe_width,
                 pipe_img=pipe_img,
-                config=self.obstacle_config,
+                config=obs_config,
                 moving=True,
                 motion_amplitude=self.config.moving_pillar_amplitude,
                 motion_frequency=self.config.moving_pillar_frequency,
@@ -108,7 +110,7 @@ class Spawner:
                 scroll_speed=state.scroll_speed,
                 width=self.config.gravity_pipe_width,
                 pipe_img=pipe_img,
-                config=self.obstacle_config,
+                config=obs_config,
             )
         else:  # ObstacleKind.PIPE
             obstacle = Obstacle(
@@ -120,7 +122,7 @@ class Spawner:
                 scroll_speed=state.scroll_speed,
                 width=self.config.pipe_width,
                 pipe_img=pipe_img,
-                config=self.obstacle_config,
+                config=obs_config,
             )
 
         collectible_y = gap_center + self.config.collectible_offset

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import math
 import random
+from pathlib import Path
 
 import pygame
 
@@ -32,7 +34,9 @@ class GameWorld:
         self.audio = audio
         self.screen_rect = pygame.Rect(0, 0, config.screen_width, config.screen_height)
         self.rng = random.Random()
-        self.best_score = self._load_high_score()
+        
+        self.high_scores = self._load_high_scores()
+        self.best_score = self.high_scores.get(self.config.difficulty, 0)
 
         self.layers: list[ParallaxLayer] = []
         self.change_theme(config.background_theme)
@@ -67,22 +71,30 @@ class GameWorld:
         self.water_wave_phase = 0.0
         self.reset()
 
-    def _load_high_score(self) -> int:
-        from pathlib import Path
-
+    def _load_high_scores(self) -> dict[str, int]:
         path = Path("high_score.json")
+        default = {"easy": 0, "medium": 0, "hard": 0}
         if path.exists():
             try:
-                return int(path.read_text())
-            except (ValueError, IOError):
+                data = json.loads(path.read_text())
+                if isinstance(data, dict):
+                    # Ensure all keys exist
+                    for k in default:
+                        if k not in data:
+                            data[k] = 0
+                    return data
+                elif isinstance(data, int):
+                    # Migration from old format
+                    default["medium"] = data
+                    return default
+            except (json.JSONDecodeError, IOError, ValueError):
                 pass
-        return 0
+        return default
 
-    def _save_high_score(self) -> None:
-        from pathlib import Path
-
+    def _save_high_scores(self) -> None:
+        path = Path("high_score.json")
         try:
-            Path("high_score.json").write_text(str(self.best_score))
+            path.write_text(json.dumps(self.high_scores))
         except IOError:
             pass
 
@@ -96,8 +108,6 @@ class GameWorld:
         num_layers = len(layer_images)
 
         if num_layers > 0:
-            # Use predefined multipliers if they match the number of layers,
-            # otherwise calculate them dynamically from 0.05 to 1.0
             if num_layers == len(self.config.background_speed_multipliers):
                 multipliers = self.config.background_speed_multipliers
             else:
@@ -138,7 +148,6 @@ class GameWorld:
             )
 
     def handle_input(self, action: str) -> None:
-        # User manual gravity shift is removed per requirement
         pass
 
     def reset(self) -> None:
@@ -153,12 +162,13 @@ class GameWorld:
         self.spawner.reset()
         self.difficulty.reset()
         self.current_difficulty = self.difficulty.update(0.0)
+        # Update best_score for current difficulty in case it changed in settings
+        self.best_score = self.high_scores.get(self.config.difficulty, 0)
         for layer in self.layers:
             layer.offset_x = 0.0
         self.water_wave_phase = 0.0
 
     def update_background(self, dt: float) -> None:
-        # For menu/UI background animation
         world_speed = self.config.obstacle_speed * 0.2
         for layer in self.layers:
             layer.update(dt, world_speed)
@@ -228,9 +238,12 @@ class GameWorld:
         self.game_over = True
         self.player.kill()
         self.audio.play_die()
-        if self.score > self.best_score:
+        
+        diff = self.config.difficulty
+        if self.score > self.high_scores.get(diff, 0):
+            self.high_scores[diff] = self.score
             self.best_score = self.score
-            self._save_high_score()
+            self._save_high_scores()
 
     def _check_obstacle_passed(self) -> None:
         player_x = self.player.hitbox.left
@@ -258,7 +271,6 @@ class GameWorld:
         river_height = max(1, river_bottom - river_top)
         water_overlay = pygame.Surface((self.config.screen_width, river_height), pygame.SRCALPHA)
 
-        # Darker near the foreground and brighter near the horizon to suggest depth.
         for y in range(river_height):
             t = y / max(1, river_height - 1)
             alpha = int(40 + t * 52)
@@ -283,7 +295,6 @@ class GameWorld:
             if len(points) >= 2:
                 pygame.draw.lines(water_overlay, (220, 243, 255, intensity), False, points, 2)
 
-        # Tiny moving highlights to break the flat strip look.
         shimmer_speed = 170
         for i in range(14):
             x = int((i * 118 + self.water_wave_phase * shimmer_speed) % (width + 120)) - 60

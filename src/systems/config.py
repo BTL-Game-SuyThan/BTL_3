@@ -11,6 +11,7 @@ class GameConfig:
     screen_height: int = 720
     target_fps: int = 60
     background_theme: str = "rural_area"
+    difficulty: str = "medium"
     background_speed_multipliers: tuple[float, ...] = (0.05, 0.15, 0.25, 0.45, 1.0)
     player_start_x: int = 220
     player_start_y: int = 320
@@ -20,13 +21,18 @@ class GameConfig:
     glide_gravity_scale: float = 0.55
     terminal_fall_speed: float = 660.0
     gravity_shift_cooldown: float = 0.45
+    
+    # These will be set by set_difficulty
     obstacle_speed: float = 260.0
     obstacle_speed_cap: float = 390.0
     speed_step_per_second: float = 7.0
-    spawn_interval: float = 1.5
+    spawn_interval: float = 1.35
     min_spawn_interval: float = 0.88
-    gap_min: float = 200.0
+    gap_min: float = 180.0
     gap_max: float = 248.0
+    dynamic_pipe_unlock_time: float = 8.0
+    gravity_pipe_unlock_time: float = 16.0
+    
     gap_floor: float = 160.0
     gap_ceiling: float = 278.0
     pipe_width: int = 92
@@ -43,13 +49,44 @@ class GameConfig:
     pipe_weight: float = 0.62
     dynamic_pipe_weight: float = 0.24
     gravity_pipe_weight: float = 0.14
-    dynamic_pipe_unlock_time: float = 8.0
-    gravity_pipe_unlock_time: float = 16.0
     difficulty_ramp_seconds: float = 15.0
     score_per_collectible: int = 1
 
+    def __post_init__(self) -> None:
+        self.set_difficulty(self.difficulty)
+
+    def set_difficulty(self, level: str) -> None:
+        self.difficulty = level
+        if level == "easy":
+            self.obstacle_speed = 200.0
+            self.obstacle_speed_cap = 300.0
+            self.spawn_interval = 1.8
+            self.gap_min = 220.0
+            self.gap_max = 280.0
+            self.dynamic_pipe_unlock_time = 15.0
+            self.gravity_pipe_unlock_time = 30.0
+        elif level == "hard":
+            self.obstacle_speed = 320.0
+            self.obstacle_speed_cap = 500.0
+            self.spawn_interval = 1.1
+            self.gap_min = 150.0
+            self.gap_max = 210.0
+            self.dynamic_pipe_unlock_time = 4.0
+            self.gravity_pipe_unlock_time = 8.0
+        else:  # medium
+            self.obstacle_speed = 260.0
+            self.obstacle_speed_cap = 390.0
+            self.spawn_interval = 1.35
+            self.gap_min = 180.0
+            self.gap_max = 248.0
+            self.dynamic_pipe_unlock_time = 8.0
+            self.gravity_pipe_unlock_time = 16.0
+
     def save(self, path: str = "config.json") -> None:
-        data = {"background_theme": self.background_theme}
+        data = {
+            "background_theme": self.background_theme,
+            "difficulty": self.difficulty
+        }
         try:
             with open(path, "w") as f:
                 json.dump(data, f)
@@ -65,6 +102,8 @@ class GameConfig:
                     data = json.load(f)
                     if "background_theme" in data:
                         instance.background_theme = data["background_theme"]
+                    if "difficulty" in data:
+                        instance.set_difficulty(data["difficulty"])
             except (json.JSONDecodeError, IOError):
                 pass
         return instance

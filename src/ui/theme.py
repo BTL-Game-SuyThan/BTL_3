@@ -36,6 +36,7 @@ class Button:
         font_size: int = 32,
         base_color=(60, 60, 60, 200),
         hover_color=(90, 90, 90, 230),
+        active_color=(120, 160, 240, 255),
         text_color=(255, 255, 255),
     ) -> None:
         self.rect = rect
@@ -43,8 +44,10 @@ class Button:
         self.font_size = font_size
         self.base_color = base_color
         self.hover_color = hover_color
+        self.active_color = active_color
         self.text_color = text_color
         self.is_hovered = False
+        self.is_active = False
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         if event.type == pygame.MOUSEMOTION:
@@ -55,13 +58,20 @@ class Button:
         return False
 
     def draw(self, surface: pygame.Surface) -> None:
-        color = self.hover_color if self.is_hovered else self.base_color
+        if self.is_active:
+            color = self.active_color
+        else:
+            color = self.hover_color if self.is_hovered else self.base_color
 
         # Draw background with alpha support
         s = pygame.Surface(self.rect.size, pygame.SRCALPHA)
         pygame.draw.rect(s, color, s.get_rect(), border_radius=12)
+        
+        border_color = (255, 255, 255, 200) if self.is_active else (255, 255, 255, 100)
+        border_width = 3 if self.is_active else 2
+        
         pygame.draw.rect(
-            s, (255, 255, 255, 100), s.get_rect(), width=2, border_radius=12
+            s, border_color, s.get_rect(), width=border_width, border_radius=12
         )
         surface.blit(s, self.rect)
 
