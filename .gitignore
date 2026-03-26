@@ -1,8 +1,6 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-<<<<<<< HEAD
 AGENTS.md
-=======
 uv.lock
->>>>>>> 25999f2 (update python version range to support 3.11)
+*.json

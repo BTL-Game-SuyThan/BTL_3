@@ -1,6 +1,7 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
+import json
+from pathlib import Path
 
 
 @dataclass(slots=True)
@@ -47,3 +48,24 @@ class GameConfig:
     laser_unlock_time: float = 16.0
     difficulty_ramp_seconds: float = 15.0
     score_per_collectible: int = 1
+
+    def save(self, path: str = "config.json") -> None:
+        data = {"background_theme": self.background_theme}
+        try:
+            with open(path, "w") as f:
+                json.dump(data, f)
+        except IOError:
+            pass
+
+    @classmethod
+    def load(cls, path: str = "config.json") -> GameConfig:
+        instance = cls()
+        if Path(path).exists():
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+                    if "background_theme" in data:
+                        instance.background_theme = data["background_theme"]
+            except (json.JSONDecodeError, IOError):
+                pass
+        return instance

@@ -16,14 +16,14 @@ from src.systems.config import GameConfig
 
 class InfiniteFlyerGame:
     def __init__(self, config: GameConfig) -> None:
-        self.config = config
-        self.screen = pygame.display.set_mode((config.screen_width, config.screen_height))
+        self.config = GameConfig.load()
+        self.screen = pygame.display.set_mode((self.config.screen_width, self.config.screen_height))
         pygame.display.set_caption("Infinite Flyer")
         self.clock = pygame.time.Clock()
-        self.assets = build_placeholder_assets(config)
+        self.assets = build_placeholder_assets(self.config)
         self.audio = AudioManager()
         self.audio.play_music()
-        self.game_world = GameWorld(config, self.assets, self.audio)
+        self.game_world = GameWorld(self.config, self.assets, self.audio)
         self.scenes = self._build_scenes()
         self.current_scene: Scene = self.scenes["menu"]
 

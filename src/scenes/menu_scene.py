@@ -31,24 +31,17 @@ class MenuScene(Scene):
         for action, button in self.buttons.items():
             if button.handle_event(event):
                 self.request_scene(action)
-                
-        if event.type == pygame.KEYDOWN:
-            if event.key in (pygame.K_SPACE, pygame.K_RETURN):
-                self.request_scene("play")
-            elif event.key == pygame.K_ESCAPE:
-                self.request_scene("quit")
 
     def update(self, dt: float) -> None:
-        # We can update the game world in the background for a live menu feel
         if self.game_state:
             self.game_state.update(dt)
 
     def render(self, surface: pygame.Surface) -> None:
         if self.game_state:
-            self.game_state.render(surface)
-            # Darken the background a bit for readability
+            self.game_state.render_background(surface)
+            # Darken the background for better contrast
             overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 80))
+            overlay.fill((0, 0, 0, 60))
             surface.blit(overlay, (0, 0))
         else:
             draw_accent_background(surface, (18, 24, 38), (44, 58, 92))

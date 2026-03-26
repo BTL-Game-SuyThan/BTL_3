@@ -14,7 +14,7 @@ class SettingsScene(Scene):
         self.back_button = Button(pygame.Rect(540, 600, 200, 60), "Back")
 
     def _setup_buttons(self) -> None:
-        themes = ["rural_area", "city_night", "city_destroyed", "legacy"]
+        themes = ["rural_area", "city_night", "city_destroyed"]
         for i, theme in enumerate(themes):
             rect = pygame.Rect(440, 200 + i * 80, 400, 60)
             display_name = theme.replace("_", " ").title()
@@ -35,11 +35,11 @@ class SettingsScene(Scene):
         self.game_state.update(dt)
 
     def render(self, surface: pygame.Surface) -> None:
-        self.game_state.render(surface)
+        self.game_state.render_background(surface)
         
         # Dark overlay
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
+        overlay.fill((0, 0, 0, 160))
         surface.blit(overlay, (0, 0))
         
         draw_text(surface, "Settings", size=64, color=(255, 255, 255), 

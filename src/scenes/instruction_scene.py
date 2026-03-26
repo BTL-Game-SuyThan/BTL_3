@@ -21,11 +21,11 @@ class InstructionScene(Scene):
         self.game_state.update(dt)
 
     def render(self, surface: pygame.Surface) -> None:
-        self.game_state.render(surface)
+        self.game_state.render_background(surface)
         
         # Dark overlay
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
+        overlay.fill((0, 0, 0, 160))
         surface.blit(overlay, (0, 0))
         
         draw_text(surface, "How to Play", size=64, color=(255, 255, 255), 

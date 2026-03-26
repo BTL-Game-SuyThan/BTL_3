@@ -70,10 +70,10 @@ Active in-game assets:
 
 Background assets (actively used in-game):
 
-- Kenney Background Elements pack files under `assets/images/kenney/`
-  Source: [Background Elements by Kenney](https://kenney.nl/assets/background-elements)
+- Parallax background from `assets/images/background/`
+  Source: [Parallax (Country side, city night, city destroyed)](https://bongseng.itch.io/parallax-country-side-city-night-city-destroyed)
   License: `CC0`
-  Usage status: active for sky/cloud/mountain/ground parallax composition
+  Usage status: active for parallax composition
 
 Notes:
 

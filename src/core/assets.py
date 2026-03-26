@@ -8,7 +8,6 @@ import pygame
 
 
 ASSET_ROOT = Path("assets/images")
-KENNEY_ROOT = ASSET_ROOT / "kenney"
 OGA_ROOT = ASSET_ROOT / "oga"
 
 
@@ -47,26 +46,6 @@ def _coin_frame(radius: int, pulse: int) -> pygame.Surface:
     return surface
 
 
-def _background_layer(size: tuple[int, int], sky_color: tuple[int, int, int], hill_color: tuple[int, int, int], depth: int) -> pygame.Surface:
-    width, height = size
-    surface = _make_surface(size)
-    surface.fill(sky_color)
-    band_height = max(100, 160 - depth * 15)
-    base_y = height - band_height
-    for idx in range(7):
-        peak_x = idx * (width // 6) + (depth * 20)
-        peak_height = 40 + ((idx + depth) % 3) * 25 + depth * 8
-        points = [
-            (peak_x - 160, height),
-            (peak_x - 70, base_y + 25),
-            (peak_x, base_y - peak_height),
-            (peak_x + 80, base_y + 35),
-            (peak_x + 170, height),
-        ]
-        pygame.draw.polygon(surface, hill_color, points)
-    return surface
-
-
 def _load_image(path: Path) -> pygame.Surface | None:
     if not path.exists():
         return None
@@ -89,16 +68,6 @@ def _scaled_frames(frames: list[pygame.Surface], size: tuple[int, int]) -> list[
     return [pygame.transform.smoothscale(frame, size) for frame in frames]
 
 
-def _build_layer_surface(layer_width: int, layer_height: int) -> pygame.Surface:
-    return pygame.Surface((layer_width, layer_height), pygame.SRCALPHA)
-
-
-def _tint_surface(surface: pygame.Surface, color: tuple[int, int, int]) -> pygame.Surface:
-    tinted = surface.copy()
-    tinted.fill((*color, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    return tinted
-
-
 def _load_theme_backgrounds(config, theme_folder_name: str) -> list[pygame.Surface]:
     theme_path = ASSET_ROOT / "background" / theme_folder_name
     if not theme_path.exists():
@@ -114,72 +83,6 @@ def _load_theme_backgrounds(config, theme_folder_name: str) -> list[pygame.Surfa
             scaled_img = pygame.transform.smoothscale(img, (new_width, config.screen_height))
             layers.append(scaled_img)
     return layers
-
-
-def _build_external_backgrounds(config) -> list[pygame.Surface] | None:
-    sky_sheet = _load_image(KENNEY_ROOT / "sky.png")
-    clouds_strip = _load_image(KENNEY_ROOT / "clouds1.png")
-    cloud_1 = _load_image(KENNEY_ROOT / "cloud1.png")
-    cloud_5 = _load_image(KENNEY_ROOT / "cloud5.png")
-    cloud_9 = _load_image(KENNEY_ROOT / "cloud9.png")
-    mountains_strip = _load_image(KENNEY_ROOT / "pointy_mountains.png")
-    hills_strip = _load_image(KENNEY_ROOT / "hills1.png")
-    mountain_1 = _load_image(KENNEY_ROOT / "mountain1.png")
-    mountain_2 = _load_image(KENNEY_ROOT / "mountain2.png")
-    mountain_3 = _load_image(KENNEY_ROOT / "mountain3.png")
-
-    required = [sky_sheet, clouds_strip, mountains_strip, hills_strip]
-    if any(asset is None for asset in required):
-        return None
-
-    layer_width = max(config.screen_width + 500, 2002)
-    layer_height = config.screen_height
-
-    sky_layer = _build_layer_surface(layer_width, layer_height)
-    sky_tex = pygame.transform.smoothscale(sky_sheet, (layer_width, layer_height))
-    sky_layer.blit(sky_tex, (0, 0))
-    cloud_band = pygame.transform.smoothscale(clouds_strip, (1001, 206))
-    for x in range(0, layer_width + 1001, 1001):
-        sky_layer.blit(cloud_band, (x, 28))
-    cloud_assets = [cloud_1, cloud_5, cloud_9]
-    cloud_positions = [(140, 98), (540, 72), (920, 130), (1320, 84), (1720, 118)]
-    for idx, (x, y) in enumerate(cloud_positions):
-        cloud = cloud_assets[idx % len(cloud_assets)]
-        if cloud is None:
-            continue
-        scale = 0.9 + (idx % 3) * 0.15
-        resized = pygame.transform.smoothscale(
-            cloud, (int(cloud.get_width() * scale), int(cloud.get_height() * scale))
-        )
-        sky_layer.blit(resized, (x, y))
-
-    mountain_layer = _build_layer_surface(layer_width, layer_height)
-    mountain_band = pygame.transform.smoothscale(mountains_strip, (1001, 168))
-    mountain_band = _tint_surface(mountain_band, (196, 214, 232))
-    for x in range(0, layer_width + 1001, 1001):
-        mountain_layer.blit(mountain_band, (x, layer_height - 360))
-    for idx, mount in enumerate([mountain_1, mountain_2, mountain_3, mountain_2, mountain_1]):
-        if mount is None:
-            continue
-        scale = 0.95 + (idx % 2) * 0.16
-        resized = pygame.transform.smoothscale(
-            mount, (int(mount.get_width() * scale), int(mount.get_height() * scale))
-        )
-        mountain_layer.blit(resized, (160 + idx * 360, layer_height - resized.get_height() - 170))
-
-    ground_layer = _build_layer_surface(layer_width, layer_height)
-    hills_band = pygame.transform.smoothscale(hills_strip, (1001, 128))
-    hills_band = _tint_surface(hills_band, (95, 132, 87))
-    for x in range(0, layer_width + 1001, 1001):
-        ground_layer.blit(hills_band, (x, layer_height - 238))
-    ground_top = layer_height - config.ground_height
-    pygame.draw.rect(ground_layer, (111, 156, 83), pygame.Rect(0, ground_top, layer_width, 160))
-    pygame.draw.rect(ground_layer, (86, 120, 61), pygame.Rect(0, ground_top + 18, layer_width, 140))
-    for stripe in range(0, layer_width, 74):
-        pygame.draw.rect(ground_layer, (74, 104, 54), pygame.Rect(stripe, ground_top + 36, 34, 84), border_radius=10)
-    pygame.draw.line(ground_layer, (188, 226, 128), (0, ground_top + 2), (layer_width, ground_top + 2), 4)
-
-    return [sky_layer, mountain_layer, ground_layer]
 
 
 def _build_external_player_frames() -> tuple[list[pygame.Surface], list[pygame.Surface]] | None:
@@ -223,14 +126,6 @@ def build_placeholder_assets(config) -> AssetBundle:
         "city_night": _load_theme_backgrounds(config, "city night"),
         "rural_area": _load_theme_backgrounds(config, "rural area"),
     }
-
-    legacy_bg = _build_external_backgrounds(config)
-    if legacy_bg is None:
-        sky = _background_layer((config.screen_width, config.screen_height), (182, 223, 255), (164, 205, 235), 1)
-        mid = _background_layer((config.screen_width, config.screen_height), (0, 0, 0, 0), (115, 146, 178), 2)
-        ground = _background_layer((config.screen_width, config.screen_height), (0, 0, 0, 0), (86, 120, 90), 3)
-        legacy_bg = [sky, mid, ground]
-    background_sets["legacy"] = legacy_bg
 
     player_frames = _build_external_player_frames()
     collectible_frames = _build_external_collectible_frames()

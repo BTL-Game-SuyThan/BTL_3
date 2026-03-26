@@ -23,13 +23,17 @@ from src.systems.spawning import SpawnResult, Spawner
 
 
 class GameWorld:
-    def __init__(self, config: GameConfig, assets: AssetBundle, audio: AudioManager) -> None:
+    def __init__(
+        self, config: GameConfig, assets: AssetBundle, audio: AudioManager
+    ) -> None:
         self.config = config
         self.assets = assets
         self.audio = audio
-        self.screen_rect = pygame.Rect(0, 0, config.screen_width, config.screen_height - config.ground_height)
+        self.screen_rect = pygame.Rect(
+            0, 0, config.screen_width, config.screen_height - config.ground_height
+        )
         self.rng = random.Random()
-        self.best_score = 0
+        self.best_score = self._load_high_score()
 
         self.layers: list[ParallaxLayer] = []
         self.change_theme(config.background_theme)
@@ -61,11 +65,31 @@ class GameWorld:
         self.current_difficulty = self.difficulty.update(0.0)
         self.reset()
 
+    def _load_high_score(self) -> int:
+        from pathlib import Path
+
+        path = Path("high_score.json")
+        if path.exists():
+            try:
+                return int(path.read_text())
+            except (ValueError, IOError):
+                pass
+        return 0
+
+    def _save_high_score(self) -> None:
+        from pathlib import Path
+
+        try:
+            Path("high_score.json").write_text(str(self.best_score))
+        except IOError:
+            pass
+
     def start(self) -> None:
         self.started = True
 
     def change_theme(self, theme: str) -> None:
         self.config.background_theme = theme
+        self.config.save()
         layer_images = self.assets.get_background_layers(theme)
         num_layers = len(layer_images)
 
@@ -79,7 +103,10 @@ class GameWorld:
                 if num_layers == 1:
                     multipliers = (max_m,)
                 else:
-                    multipliers = tuple(min_m + (i / (num_layers - 1)) * (max_m - min_m) for i in range(num_layers))
+                    multipliers = tuple(
+                        min_m + (i / (num_layers - 1)) * (max_m - min_m)
+                        for i in range(num_layers)
+                    )
 
             self.layers = [
                 ParallaxLayer(image=img, speed_multiplier=m)
@@ -94,7 +121,9 @@ class GameWorld:
         self.started = True
         self.player.flap()
         self.audio.play_flap()
-        self.particles.emit_feather_burst(self.player.tail_position(), count=self.rng.randint(4, 7))
+        self.particles.emit_feather_burst(
+            self.player.tail_position(), count=self.rng.randint(4, 7)
+        )
 
     def toggle_gravity(self) -> None:
         if self.game_over:
@@ -102,7 +131,9 @@ class GameWorld:
         self.started = True
         shifted = self.player.shift_gravity()
         if shifted:
-            self.particles.emit_feather_burst(self.player.rect.center, count=self.rng.randint(6, 9))
+            self.particles.emit_feather_burst(
+                self.player.rect.center, count=self.rng.randint(6, 9)
+            )
 
     def handle_input(self, action: str) -> None:
         if action == "gravity_shift":
@@ -138,7 +169,11 @@ class GameWorld:
         else:
             self.current_difficulty = self.difficulty.update(0.0)
 
-        world_speed = self.current_difficulty.scroll_speed if self.started else self.config.obstacle_speed * 0.2
+        world_speed = (
+            self.current_difficulty.scroll_speed
+            if self.started
+            else self.config.obstacle_speed * 0.2
+        )
 
         for layer in self.layers:
             layer.update(dt, world_speed)
@@ -162,13 +197,17 @@ class GameWorld:
             self.obstacles = cull_offscreen_obstacles(self.obstacles)
             self.collectibles = cull_offscreen_collectibles(self.collectibles)
 
-            if player_hits_bounds(self.player, self.screen_rect) or player_hits_obstacles(self.player, self.obstacles):
+            if player_hits_bounds(
+                self.player, self.screen_rect
+            ) or player_hits_obstacles(self.player, self.obstacles):
                 self._trigger_game_over()
         else:
             self.particles.update(dt)
 
     def _spawn_entities(self, dt: float) -> None:
-        spawn_results = self.spawner.update(dt, self.current_difficulty, self.rng, self.screen_rect)
+        spawn_results = self.spawner.update(
+            dt, self.current_difficulty, self.rng, self.screen_rect
+        )
         for result in spawn_results:
             self.obstacles.append(result.obstacle)
             if result.collectible is not None:
@@ -178,22 +217,28 @@ class GameWorld:
         self.game_over = True
         self.player.kill()
         self.audio.play_die()
-        self.best_score = max(self.best_score, self.score)
+        if self.score > self.best_score:
+            self.best_score = self.score
+            self._save_high_score()
 
     def _check_obstacle_passed(self) -> None:
         player_x = self.player.hitbox.left
         for obstacle in self.obstacles:
-            if obstacle.alive and not obstacle.passed_player and obstacle.x + obstacle.width < player_x:
+            if (
+                obstacle.alive
+                and not obstacle.passed_player
+                and obstacle.x + obstacle.width < player_x
+            ):
                 obstacle.passed_player = True
                 self.audio.play_pass()
 
-    def render(self, surface: pygame.Surface) -> None:
+    def render_background(self, surface: pygame.Surface) -> None:
         surface.fill((183, 224, 255))
         for layer in self.layers:
             layer.draw(surface)
 
-        if not self.started:
-            self._draw_idle_world_hint(surface)
+    def render(self, surface: pygame.Surface) -> None:
+        self.render_background(surface)
 
         for obstacle in self.obstacles:
             obstacle.draw(surface)
@@ -201,13 +246,3 @@ class GameWorld:
             collectible.draw(surface)
         self.particles.draw(surface)
         self.player.draw(surface)
-
-    def _draw_idle_world_hint(self, surface: pygame.Surface) -> None:
-        text = self.assets.hud_font.render("Space: flap/glide   |   G: gravity shift", True, (236, 241, 249))
-        panel_width = min(self.config.screen_width - 96, text.get_width() + 44)
-        hint_rect = pygame.Rect((self.config.screen_width - panel_width) // 2, self.config.screen_height - 86, panel_width, 42)
-        overlay = pygame.Surface(hint_rect.size, pygame.SRCALPHA)
-        overlay.fill((10, 14, 24, 145))
-        pygame.draw.rect(overlay, (255, 255, 255, 24), overlay.get_rect(), width=1, border_radius=14)
-        surface.blit(overlay, hint_rect)
-        surface.blit(text, text.get_rect(midleft=(hint_rect.x + 18, hint_rect.centery)))
