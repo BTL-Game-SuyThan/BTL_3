@@ -12,6 +12,7 @@ class GameConfig:
     target_fps: int = 60
     background_theme: str = "rural_area"
     difficulty: str = "medium"
+    bird_color: str = "green"
     background_speed_multipliers: tuple[float, ...] = (0.05, 0.15, 0.25, 0.45, 1.0)
     player_start_x: int = 220
     player_start_y: int = 320
@@ -21,7 +22,7 @@ class GameConfig:
     glide_gravity_scale: float = 0.55
     terminal_fall_speed: float = 660.0
     gravity_shift_cooldown: float = 0.45
-    
+
     # These will be set by set_difficulty
     obstacle_speed: float = 260.0
     obstacle_speed_cap: float = 390.0
@@ -32,7 +33,7 @@ class GameConfig:
     gap_max: float = 248.0
     dynamic_pipe_unlock_time: float = 8.0
     gravity_pipe_unlock_time: float = 16.0
-    
+
     gap_floor: float = 160.0
     gap_ceiling: float = 278.0
     pipe_width: int = 92
@@ -85,7 +86,8 @@ class GameConfig:
     def save(self, path: str = "config.json") -> None:
         data = {
             "background_theme": self.background_theme,
-            "difficulty": self.difficulty
+            "difficulty": self.difficulty,
+            "bird_color": self.bird_color,
         }
         try:
             with open(path, "w") as f:
@@ -104,6 +106,8 @@ class GameConfig:
                         instance.background_theme = data["background_theme"]
                     if "difficulty" in data:
                         instance.set_difficulty(data["difficulty"])
+                    if "bird_color" in data:
+                        instance.bird_color = data["bird_color"]
             except (json.JSONDecodeError, IOError):
                 pass
         return instance

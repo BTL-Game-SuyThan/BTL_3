@@ -38,6 +38,7 @@ class Button:
         hover_color=(90, 90, 90, 230),
         active_color=(120, 160, 240, 255),
         text_color=(255, 255, 255),
+        icon: pygame.Surface | None = None,
     ) -> None:
         self.rect = rect
         self.text = text
@@ -46,6 +47,7 @@ class Button:
         self.hover_color = hover_color
         self.active_color = active_color
         self.text_color = text_color
+        self.icon = icon
         self.is_hovered = False
         self.is_active = False
 
@@ -75,12 +77,19 @@ class Button:
         )
         surface.blit(s, self.rect)
 
+        text_pos = list(self.rect.center)
+        if self.icon:
+            # If there's an icon, shift text to the right and draw icon
+            icon_rect = self.icon.get_rect(midleft=(self.rect.left + 15, self.rect.centery))
+            surface.blit(self.icon, icon_rect)
+            text_pos[0] += 20
+
         draw_text(
             surface,
             self.text,
             size=self.font_size,
             color=self.text_color,
-            pos=self.rect.center,
+            pos=text_pos,
             anchor="center",
             bold=True,
         )

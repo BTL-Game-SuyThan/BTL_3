@@ -10,6 +10,7 @@ import pygame
 ASSET_ROOT = Path("assets/images")
 OGA_ROOT = ASSET_ROOT / "oga"
 PIPE_ROOT = ASSET_ROOT / "pipes"
+BIRD_ROOT = ASSET_ROOT / "birds"
 
 
 def _make_surface(size: tuple[int, int]) -> pygame.Surface:
@@ -109,21 +110,35 @@ def _load_theme_backgrounds(config, theme_folder_name: str) -> list[pygame.Surfa
 
 
 def _build_external_player_frames() -> (
-    tuple[list[pygame.Surface], list[pygame.Surface]] | None
+    tuple[dict[str, list[pygame.Surface]], dict[str, list[pygame.Surface]]] | None
 ):
-    bird_sheet = _load_image(OGA_ROOT / "bird_v001_blue_and_yellow.png")
-    if bird_sheet is None:
-        return None
+    birds_idle_assets = {}
+    birds_flap_assets = {}
 
-    idle_frames = [_extract_sheet(bird_sheet, (48, 32), 6, i) for i in range(8)]
-    idle_frames = list(filter(lambda x: x is not None, idle_frames))
-    flap_frames = [_extract_sheet(bird_sheet, (48, 32), 5, i) for i in range(8)]
-    flap_frames = list(filter(lambda x: x is not None, flap_frames))
-    if not idle_frames or not flap_frames:
+    for bird in BIRD_ROOT._scandir():
+        color = bird.name.split("_")[0].lower()
+        bird_sheet = _load_image(BIRD_ROOT / bird.name)
+
+        idle_frames = [
+            _extract_sheet(bird_sheet, (16, 16), 0, 1),
+            _extract_sheet(bird_sheet, (16, 16), 0, 3),
+        ]
+        idle_frames = list(filter(lambda x: x is not None, idle_frames))
+        flap_frames = [
+            _extract_sheet(bird_sheet, (16, 16), 0, 0),
+            _extract_sheet(bird_sheet, (16, 16), 0, 1),
+            _extract_sheet(bird_sheet, (16, 16), 0, 2),
+            _extract_sheet(bird_sheet, (16, 16), 0, 3),
+        ]
+        flap_frames = list(filter(lambda x: x is not None, flap_frames))
+        if not idle_frames or not flap_frames:
+            continue
+        birds_idle_assets[color] = _scaled_frames(idle_frames[:4], (56, 56))
+        birds_flap_assets[color] = _scaled_frames(flap_frames[:4], (56, 56))
+
+    if not birds_idle_assets or not birds_flap_assets:
         return None
-    return _scaled_frames(idle_frames[:4], (84, 56)), _scaled_frames(
-        flap_frames[:4], (84, 56)
-    )
+    return (birds_idle_assets, birds_flap_assets)
 
 
 def _build_external_collectible_frames() -> list[pygame.Surface] | None:
@@ -139,9 +154,9 @@ def _build_external_collectible_frames() -> list[pygame.Surface] | None:
 @dataclass(slots=True)
 class AssetBundle:
     background_sets: dict[str, list[pygame.Surface]]
-    player_idle_frames: list[pygame.Surface]
-    player_flap_frames: list[pygame.Surface]
-    collectible_frames: list[pygame.Surface]
+    player_idle_frames: dict[str, list[pygame.Surface]]
+    player_flap_frames: dict[str, list[pygame.Surface]]
+    collectible_frames: dict[str, list[pygame.Surface]]
     pipe_img: pygame.Surface | None
     dynamic_pipe_img: pygame.Surface | None
     gravity_pipe_img: pygame.Surface | None
@@ -151,6 +166,14 @@ class AssetBundle:
     def get_background_layers(self, theme: str) -> list[pygame.Surface]:
         return self.background_sets.get(
             theme, self.background_sets.get("rural_area", [])
+        )
+
+    def get_player_frames(
+        self, color: str
+    ) -> tuple[list[pygame.Surface], list[pygame.Surface]]:
+        return (
+            self.player_idle_frames.get(color, self.player_idle_frames.get("blue", [])),
+            self.player_flap_frames.get(color, self.player_flap_frames.get("blue", [])),
         )
 
 
@@ -165,14 +188,18 @@ def build_placeholder_assets(config) -> AssetBundle:
     collectible_frames = _build_external_collectible_frames()
 
     if player_frames is None:
-        player_idle = [
-            _player_frame((68, 56), (255, 136, 77), angle)
-            for angle in (0.2, 0.0, -0.2, 0.0)
-        ]
-        player_flap = [
-            _player_frame((68, 56), (255, 136, 77), angle)
-            for angle in (-0.7, -0.25, 0.2)
-        ]
+        player_idle = {
+            "blue": [
+                _player_frame((68, 56), (255, 136, 77), angle)
+                for angle in (0.2, 0.0, -0.2, 0.0)
+            ]
+        }
+        player_flap = {
+            "blue": [
+                _player_frame((68, 56), (255, 136, 77), angle)
+                for angle in (-0.7, -0.25, 0.2)
+            ]
+        }
     else:
         player_idle, player_flap = player_frames
 

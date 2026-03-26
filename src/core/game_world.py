@@ -34,7 +34,7 @@ class GameWorld:
         self.audio = audio
         self.screen_rect = pygame.Rect(0, 0, config.screen_width, config.screen_height)
         self.rng = random.Random()
-        
+
         self.high_scores = self._load_high_scores()
         self.best_score = self.high_scores.get(self.config.difficulty, 0)
 
@@ -42,6 +42,7 @@ class GameWorld:
         self.change_theme(config.background_theme)
 
         player_position = (config.player_start_x, config.player_start_y)
+        idle_frames, flap_frames = assets.get_player_frames(config.bird_color)
         self.player = Player(
             player_position,
             config=PlayerConfig(
@@ -52,8 +53,8 @@ class GameWorld:
                 terminal_fall_speed=config.terminal_fall_speed,
                 gravity_shift_cooldown=config.gravity_shift_cooldown,
             ),
-            idle_frames=assets.player_idle_frames,
-            flap_frames=assets.player_flap_frames,
+            idle_frames=idle_frames,
+            flap_frames=flap_frames,
         )
         self.spawner = Spawner(
             config, collectible_frames=assets.collectible_frames, assets=assets
@@ -189,11 +190,7 @@ class GameWorld:
             self.current_difficulty = self.difficulty.update(0.0)
         self.water_wave_phase += dt * 2.6
 
-        world_speed = (
-            self.current_difficulty.scroll_speed
-            if self.started
-            else 0.0
-        )
+        world_speed = self.current_difficulty.scroll_speed if self.started else 0.0
 
         for layer in self.layers:
             layer.update(dt, world_speed)
@@ -238,7 +235,7 @@ class GameWorld:
         self.game_over = True
         self.player.kill()
         self.audio.play_die()
-        
+
         diff = self.config.difficulty
         if self.score > self.high_scores.get(diff, 0):
             self.high_scores[diff] = self.score
@@ -269,7 +266,9 @@ class GameWorld:
         river_top = int(self.config.screen_height * 0.72)
         river_bottom = int(self.config.screen_height * 0.92)
         river_height = max(1, river_bottom - river_top)
-        water_overlay = pygame.Surface((self.config.screen_width, river_height), pygame.SRCALPHA)
+        water_overlay = pygame.Surface(
+            (self.config.screen_width, river_height), pygame.SRCALPHA
+        )
 
         for y in range(river_height):
             t = y / max(1, river_height - 1)
@@ -280,7 +279,9 @@ class GameWorld:
                 int(198 - t * 26),
                 alpha,
             )
-            pygame.draw.line(water_overlay, color, (0, y), (self.config.screen_width, y))
+            pygame.draw.line(
+                water_overlay, color, (0, y), (self.config.screen_width, y)
+            )
 
         width = self.config.screen_width
         for band, intensity in ((8, 78), (19, 55), (31, 34)):
@@ -289,15 +290,21 @@ class GameWorld:
                 y = int(
                     river_height * 0.32
                     + band
-                    + 7 * math.sin(x * 0.024 + self.water_wave_phase * (1.3 + band * 0.03))
+                    + 7
+                    * math.sin(x * 0.024 + self.water_wave_phase * (1.3 + band * 0.03))
                 )
                 points.append((x, y))
             if len(points) >= 2:
-                pygame.draw.lines(water_overlay, (220, 243, 255, intensity), False, points, 2)
+                pygame.draw.lines(
+                    water_overlay, (220, 243, 255, intensity), False, points, 2
+                )
 
         shimmer_speed = 170
         for i in range(14):
-            x = int((i * 118 + self.water_wave_phase * shimmer_speed) % (width + 120)) - 60
+            x = (
+                int((i * 118 + self.water_wave_phase * shimmer_speed) % (width + 120))
+                - 60
+            )
             y = int(river_height * (0.24 + (i % 5) * 0.11))
             pygame.draw.ellipse(water_overlay, (235, 250, 255, 38), (x, y, 40, 6))
 

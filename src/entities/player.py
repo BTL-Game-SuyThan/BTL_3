@@ -17,7 +17,7 @@ class PlayerState(str, Enum):
 
 @dataclass(slots=True)
 class PlayerConfig:
-    width: int = 56
+    width: int = 40
     height: int = 40
     gravity: float = 1700.0
     flap_velocity: float = -440.0
@@ -76,10 +76,10 @@ class Player:
         self.config = config or PlayerConfig()
         default_idle, default_flap = make_player_frames(self.config)
         self.idle_animation = SpriteAnimation(
-            idle_frames or default_idle, fps=7.0, loop=True
+            idle_frames or default_idle, fps=4.0, loop=True
         )
         self.flap_animation = SpriteAnimation(
-            flap_frames or default_flap, fps=7.0, loop=True
+            flap_frames or default_flap, fps=4.0, loop=True
         )
         self.position = pygame.Vector2(position)
         self.velocity = pygame.Vector2(0.0, 0.0)
