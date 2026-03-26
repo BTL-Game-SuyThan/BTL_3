@@ -8,7 +8,6 @@ from pathlib import Path
 class GameConfig:
     screen_width: int = 1280
     screen_height: int = 720
-    ground_height: int = 120
     target_fps: int = 60
     background_theme: str = "rural_area"
     background_speed_multipliers: tuple[float, ...] = (0.05, 0.15, 0.25, 0.45, 1.0)

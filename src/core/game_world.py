@@ -29,9 +29,7 @@ class GameWorld:
         self.config = config
         self.assets = assets
         self.audio = audio
-        self.screen_rect = pygame.Rect(
-            0, 0, config.screen_width, config.screen_height - config.ground_height
-        )
+        self.screen_rect = pygame.Rect(0, 0, config.screen_width, config.screen_height)
         self.rng = random.Random()
         self.best_score = self._load_high_score()
 
