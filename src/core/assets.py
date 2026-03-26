@@ -15,13 +15,17 @@ def _make_surface(size: tuple[int, int]) -> pygame.Surface:
     return pygame.Surface(size, pygame.SRCALPHA)
 
 
-def _player_frame(size: tuple[int, int], body_color: tuple[int, int, int], wing_angle: float) -> pygame.Surface:
+def _player_frame(
+    size: tuple[int, int], body_color: tuple[int, int, int], wing_angle: float
+) -> pygame.Surface:
     surface = _make_surface(size)
     w, h = size
     pygame.draw.ellipse(surface, body_color, (10, 12, w - 24, h - 20))
     pygame.draw.circle(surface, (255, 255, 255), (w - 24, 20), 8)
     pygame.draw.circle(surface, (22, 22, 22), (w - 22, 20), 4)
-    pygame.draw.polygon(surface, (255, 187, 51), [(w - 18, 28), (w - 2, 34), (w - 18, 40)])
+    pygame.draw.polygon(
+        surface, (255, 187, 51), [(w - 18, 28), (w - 2, 34), (w - 18, 40)]
+    )
     wing_origin = pygame.Vector2(w * 0.45, h * 0.52)
     wing_length = 22
     wing_width = 12
@@ -52,19 +56,35 @@ def _load_image(path: Path) -> pygame.Surface | None:
     return pygame.image.load(path.as_posix()).convert_alpha()
 
 
-def _slice_sheet(sheet: pygame.Surface, cell_size: tuple[int, int], row: int, columns: int) -> list[pygame.Surface]:
-    cell_width, cell_height = cell_size
+def _slice_sheet(
+    sheet: pygame.Surface, cell_size: tuple[int, int], row: int, columns: int
+) -> list[pygame.Surface]:
     frames: list[pygame.Surface] = []
     for col in range(columns):
-        frame = pygame.Surface(cell_size, pygame.SRCALPHA)
-        frame.blit(sheet, (0, 0), pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height))
-        if frame.get_bounding_rect().width == 0:
-            continue
-        frames.append(frame)
+        frame = _extract_sheet(sheet, cell_size, row, col)
+        if frame is not None:
+            frames.append(frame)
     return frames
 
 
-def _scaled_frames(frames: list[pygame.Surface], size: tuple[int, int]) -> list[pygame.Surface]:
+def _extract_sheet(
+    sheet: pygame.Surface, cell_size: tuple[int, int], row: int, column: int
+) -> pygame.Surface | None:
+    cell_width, cell_height = cell_size
+    frame = pygame.Surface(cell_size, pygame.SRCALPHA)
+    frame.blit(
+        sheet,
+        (0, 0),
+        pygame.Rect(column * cell_width, row * cell_height, cell_width, cell_height),
+    )
+    if frame.get_bounding_rect().width == 0:
+        return None
+    return frame
+
+
+def _scaled_frames(
+    frames: list[pygame.Surface], size: tuple[int, int]
+) -> list[pygame.Surface]:
     return [pygame.transform.smoothscale(frame, size) for frame in frames]
 
 
@@ -80,21 +100,32 @@ def _load_theme_backgrounds(config, theme_folder_name: str) -> list[pygame.Surfa
         if img:
             scale_factor = config.screen_height / img.get_height()
             new_width = max(config.screen_width, int(img.get_width() * scale_factor))
-            scaled_img = pygame.transform.smoothscale(img, (new_width, config.screen_height))
+            scaled_img = pygame.transform.smoothscale(
+                img, (new_width, config.screen_height)
+            )
             layers.append(scaled_img)
     return layers
 
 
-def _build_external_player_frames() -> tuple[list[pygame.Surface], list[pygame.Surface]] | None:
+def _build_external_player_frames() -> (
+    tuple[list[pygame.Surface], list[pygame.Surface]] | None
+):
     bird_sheet = _load_image(OGA_ROOT / "bird_v001_blue_and_yellow.png")
     if bird_sheet is None:
         return None
 
-    idle_frames = _slice_sheet(bird_sheet, (48, 32), row=2, columns=6)
-    flap_frames = _slice_sheet(bird_sheet, (48, 32), row=6, columns=6)
+    # idle_frames = _slice_sheet(bird_sheet, (48, 32), row=2, columns=6)
+    # flap_frames = _slice_sheet(bird_sheet, (48, 32), row=6, columns=6)
+    # print(idle_frames)
+    idle_frames = [_extract_sheet(bird_sheet, (48, 32), 6, i) for i in range(8)]
+    idle_frames = list(filter(lambda x: x is not None, idle_frames))
+    flap_frames = [_extract_sheet(bird_sheet, (48, 32), 5, i) for i in range(8)]
+    flap_frames = list(filter(lambda x: x is not None, flap_frames))
     if not idle_frames or not flap_frames:
         return None
-    return _scaled_frames(idle_frames[:4], (84, 56)), _scaled_frames(flap_frames[:4], (84, 56))
+    return _scaled_frames(idle_frames[:4], (84, 56)), _scaled_frames(
+        flap_frames[:4], (84, 56)
+    )
 
 
 def _build_external_collectible_frames() -> list[pygame.Surface] | None:
@@ -117,7 +148,9 @@ class AssetBundle:
     title_font: pygame.font.Font
 
     def get_background_layers(self, theme: str) -> list[pygame.Surface]:
-        return self.background_sets.get(theme, self.background_sets.get("rural_area", []))
+        return self.background_sets.get(
+            theme, self.background_sets.get("rural_area", [])
+        )
 
 
 def build_placeholder_assets(config) -> AssetBundle:
@@ -131,13 +164,27 @@ def build_placeholder_assets(config) -> AssetBundle:
     collectible_frames = _build_external_collectible_frames()
 
     if player_frames is None:
-        player_idle = [_player_frame((68, 56), (255, 136, 77), angle) for angle in (0.2, 0.0, -0.2, 0.0)]
-        player_flap = [_player_frame((68, 56), (255, 136, 77), angle) for angle in (-0.7, -0.25, 0.2)]
+        player_idle = [
+            _player_frame((68, 56), (255, 136, 77), angle)
+            for angle in (0.2, 0.0, -0.2, 0.0)
+        ]
+        player_flap = [
+            _player_frame((68, 56), (255, 136, 77), angle)
+            for angle in (-0.7, -0.25, 0.2)
+        ]
     else:
         player_idle, player_flap = player_frames
 
     if collectible_frames is None:
-        collectible_frames = [_coin_frame(config.collectible_radius if hasattr(config, "collectible_radius") else 20, pulse) for pulse in (0, 1, 2, 1)]
+        collectible_frames = [
+            _coin_frame(
+                config.collectible_radius
+                if hasattr(config, "collectible_radius")
+                else 20,
+                pulse,
+            )
+            for pulse in (0, 1, 2, 1)
+        ]
 
     return AssetBundle(
         background_sets=background_sets,
