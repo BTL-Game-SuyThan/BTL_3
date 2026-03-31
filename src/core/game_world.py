@@ -17,8 +17,8 @@ from src.entities.player import Player, PlayerConfig
 from src.systems.cleanup import cull_offscreen_collectibles, cull_offscreen_obstacles
 from src.systems.collision import (
     collect_player_collectibles,
+    first_collided_obstacle,
     player_hits_bounds,
-    player_hits_obstacles,
 )
 from src.systems.config import GameConfig
 from src.systems.difficulty import DifficultyManager, DifficultyState
@@ -52,6 +52,8 @@ class GameWorld:
                 glide_gravity_scale=config.glide_gravity_scale,
                 terminal_fall_speed=config.terminal_fall_speed,
                 gravity_shift_cooldown=config.gravity_shift_cooldown,
+                damage_immunity_duration=config.damage_immunity_duration,
+                damage_blink_frequency=config.damage_blink_frequency,
             ),
             idle_frames=idle_frames,
             flap_frames=flap_frames,
@@ -65,6 +67,8 @@ class GameWorld:
         self.started = False
         self.game_over = False
         self.score = 0
+        self.has_shield = False
+        self.obstacles_passed = 0
         self.collectibles_collected = 0
         self.obstacles: list[Obstacle] = []
         self.collectibles: list[Collectible] = []
@@ -155,6 +159,8 @@ class GameWorld:
         self.started = False
         self.game_over = False
         self.score = 0
+        self.has_shield = False
+        self.obstacles_passed = 0
         self.collectibles_collected = 0
         self.obstacles.clear()
         self.collectibles.clear()
@@ -207,29 +213,47 @@ class GameWorld:
             self.particles.update(dt)
             self._check_obstacle_passed()
 
-            gained = collect_player_collectibles(self.player, self.collectibles)
-            if gained > 0:
+            collected = collect_player_collectibles(self.player, self.collectibles)
+            if collected.granted_shield:
+                self.has_shield = True
+            if collected.score > 0:
                 self.audio.play_coin()
-            self.score += gained
+            self.score += collected.score
             self.collectibles_collected = self.score
             self.obstacles = cull_offscreen_obstacles(self.obstacles)
             self.collectibles = cull_offscreen_collectibles(self.collectibles)
 
-            if player_hits_bounds(
-                self.player, self.screen_rect
-            ) or player_hits_obstacles(self.player, self.obstacles):
+            if player_hits_bounds(self.player, self.screen_rect):
                 self._trigger_game_over()
+            else:
+                collided_obstacle = first_collided_obstacle(self.player, self.obstacles)
+                if collided_obstacle is not None:
+                    if self.has_shield:
+                        self.has_shield = False
+                        self.player.trigger_damage_immunity()
+                        self.particles.emit_pop_burst(
+                            (float(self.player.hitbox.centerx), float(self.player.hitbox.centery)),
+                            count=self.rng.randint(9, 14),
+                        )
+                    elif self.player.is_damage_immune:
+                        pass
+                    else:
+                        self._trigger_game_over()
         else:
             self.particles.update(dt)
 
     def _spawn_entities(self, dt: float) -> None:
         spawn_results = self.spawner.update(
-            dt, self.current_difficulty, self.rng, self.screen_rect
+            dt,
+            self.current_difficulty,
+            self.rng,
+            self.screen_rect,
+            self.obstacles_passed,
+            self.player.gravity_direction,
         )
         for result in spawn_results:
             self.obstacles.append(result.obstacle)
-            if result.collectible is not None:
-                self.collectibles.append(result.collectible)
+            self.collectibles.extend(result.collectibles)
 
     def _trigger_game_over(self) -> None:
         self.game_over = True
@@ -251,6 +275,7 @@ class GameWorld:
                 and obstacle.x + obstacle.width < player_x
             ):
                 obstacle.passed_player = True
+                self.obstacles_passed += 1
                 self.audio.play_pass()
                 if obstacle.kind == ObstacleKind.GRAVITY_PIPE:
                     self.toggle_gravity()

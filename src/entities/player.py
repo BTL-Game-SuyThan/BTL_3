@@ -27,6 +27,8 @@ class PlayerConfig:
     rise_animation_time: float = 0.32
     hitbox_scale: float = 0.78
     gravity_shift_cooldown: float = 0.45
+    damage_immunity_duration: float = 1.0
+    damage_blink_frequency: float = 11.0
 
 
 def _make_surface(
@@ -90,6 +92,8 @@ class Player:
         self._rise_timer = 0.0
         self.gravity_direction = 1.0
         self.gravity_shift_cooldown = 0.0
+        self.damage_immunity_timer = 0.0
+        self.damage_blink_timer = 0.0
         self.rect = self.current_frame.get_rect(
             center=(round(self.position.x), round(self.position.y))
         )
@@ -123,6 +127,10 @@ class Player:
     def can_shift_gravity(self) -> bool:
         return self.gravity_shift_cooldown <= 0.0 and self.alive
 
+    @property
+    def is_damage_immune(self) -> bool:
+        return self.damage_immunity_timer > 0.0
+
     def shift_gravity(self) -> bool:
         if not self.can_shift_gravity():
             return False
@@ -135,6 +143,15 @@ class Player:
         self.alive = False
         self.state = PlayerState.DEAD
 
+    def trigger_damage_immunity(self, duration: float | None = None) -> None:
+        if not self.alive:
+            return
+        self.damage_immunity_timer = max(
+            self.damage_immunity_timer,
+            self.config.damage_immunity_duration if duration is None else duration,
+        )
+        self.damage_blink_timer = 0.0
+
     def reset(self, position: tuple[float, float]) -> None:
         self.position.update(position)
         self.velocity.update(0.0, 0.0)
@@ -145,6 +162,8 @@ class Player:
         self._rise_timer = 0.0
         self.gravity_direction = 1.0
         self.gravity_shift_cooldown = 0.0
+        self.damage_immunity_timer = 0.0
+        self.damage_blink_timer = 0.0
         self.idle_animation.reset()
         self.flap_animation.reset()
         self._sync_rects()
@@ -160,6 +179,9 @@ class Player:
             self._rise_timer = max(0.0, self._rise_timer - dt)
         if self.gravity_shift_cooldown > 0:
             self.gravity_shift_cooldown = max(0.0, self.gravity_shift_cooldown - dt)
+        if self.damage_immunity_timer > 0:
+            self.damage_immunity_timer = max(0.0, self.damage_immunity_timer - dt)
+            self.damage_blink_timer += dt
 
         gravity_scale = (
             self.config.glide_gravity_scale
@@ -199,6 +221,11 @@ class Player:
         self.hitbox = hitbox
 
     def draw(self, surface: pygame.Surface) -> None:
+        if self.is_damage_immune:
+            blink_period = 1.0 / max(0.1, self.config.damage_blink_frequency)
+            phase = (self.damage_blink_timer % blink_period) / blink_period
+            if phase < 0.42:
+                return
         frame = self.current_frame
         if self.gravity_direction < 0:
             frame = pygame.transform.flip(frame, False, True)

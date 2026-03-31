@@ -22,6 +22,8 @@ class GameConfig:
     glide_gravity_scale: float = 0.55
     terminal_fall_speed: float = 660.0
     gravity_shift_cooldown: float = 0.45
+    damage_immunity_duration: float = 1.0
+    damage_blink_frequency: float = 11.0
 
     # These will be set by set_difficulty
     obstacle_speed: float = 260.0
@@ -39,10 +41,19 @@ class GameConfig:
     pipe_width: int = 92
     dynamic_pipe_width: int = 92
     gravity_pipe_width: int = 92
+    windmill_width: int = 130
     moving_pillar_amplitude: float = 44.0
     moving_pillar_frequency: float = 1.15
+    windmill_house_height: int = 186
+    windmill_rotor_size: int = 162
+    windmill_rotor_radius: float = 52.0
+    windmill_spin_speed: float = 110.0
+    windmill_unlock_obstacles: int = 5
+    windmill_weight: float = 0.16
+    windmill_enabled: bool = False
     collectible_offset: float = 0.0
     collectible_points: int = 1
+    shield_spawn_interval: int = 4
     particle_burst_min: int = 3
     particle_burst_max: int = 5
     particle_lifetime_min: float = 0.22

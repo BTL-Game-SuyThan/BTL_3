@@ -75,6 +75,24 @@ class ParticleSystem:
         self.emit_feather_burst(origin, count=count)
         # pass
 
+    def emit_pop_burst(self, origin: tuple[float, float], count: int = 10) -> None:
+        for _ in range(count):
+            angle = random.uniform(0.0, 360.0)
+            speed = random.uniform(120.0, 260.0)
+            velocity = pygame.Vector2(1, 0).rotate(angle) * speed
+            self.particles.append(
+                Particle(
+                    position=pygame.Vector2(origin),
+                    velocity=velocity,
+                    color=random.choice([(255, 242, 170), (255, 220, 140), (246, 199, 120)]),
+                    width=random.uniform(3.0, 5.0),
+                    height=random.uniform(5.0, 8.0),
+                    spin=random.uniform(-260.0, 260.0),
+                    angle=random.uniform(0.0, 360.0),
+                    lifetime=random.uniform(0.18, 0.32),
+                )
+            )
+
     def update(self, dt: float) -> None:
         for particle in self.particles:
             particle.update(dt)

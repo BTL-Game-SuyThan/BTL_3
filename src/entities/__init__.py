@@ -1,5 +1,11 @@
 from .animation import SpriteAnimation
-from .collectibles import Collectible, CollectibleConfig, make_collectible_frames
+from .collectibles import (
+    Collectible,
+    CollectibleConfig,
+    CollectibleKind,
+    CollectResult,
+    make_collectible_frames,
+)
 from .obstacles import (
     Obstacle,
     ObstacleConfig,
@@ -11,6 +17,8 @@ from .player import Player, PlayerConfig, PlayerState, make_player_frames
 __all__ = [
     "Collectible",
     "CollectibleConfig",
+    "CollectibleKind",
+    "CollectResult",
     "Obstacle",
     "ObstacleConfig",
     "ObstacleKind",

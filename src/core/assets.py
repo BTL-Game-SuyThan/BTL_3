@@ -11,6 +11,8 @@ ASSET_ROOT = Path("assets/images")
 OGA_ROOT = ASSET_ROOT / "oga"
 PIPE_ROOT = ASSET_ROOT / "pipes"
 BIRD_ROOT = ASSET_ROOT / "birds"
+SHIELD_ROOT = ASSET_ROOT / "shield"
+WINDMILL_ROOT = ASSET_ROOT / "obstacles" / "windmill"
 
 
 def _make_surface(size: tuple[int, int]) -> pygame.Surface:
@@ -160,6 +162,9 @@ class AssetBundle:
     pipe_img: pygame.Surface | None
     dynamic_pipe_img: pygame.Surface | None
     gravity_pipe_img: pygame.Surface | None
+    shield_img: pygame.Surface | None
+    windmill_house_img: pygame.Surface | None
+    windmill_rotor_img: pygame.Surface | None
     hud_font: pygame.font.Font
     title_font: pygame.font.Font
 
@@ -217,6 +222,9 @@ def build_placeholder_assets(config) -> AssetBundle:
     pipe_img = _load_image(PIPE_ROOT / "green_pipe.png")
     dynamic_pipe_img = _load_image(PIPE_ROOT / "blue_pipe.png")
     gravity_pipe_img = _load_image(PIPE_ROOT / "red_pipe.png")
+    shield_img = _load_image(SHIELD_ROOT / "shield.png")
+    windmill_house_img = _load_image(WINDMILL_ROOT / "house.png")
+    windmill_rotor_img = _load_image(WINDMILL_ROOT / "windmill.png")
 
     return AssetBundle(
         background_sets=background_sets,
@@ -226,6 +234,9 @@ def build_placeholder_assets(config) -> AssetBundle:
         pipe_img=pipe_img,
         dynamic_pipe_img=dynamic_pipe_img,
         gravity_pipe_img=gravity_pipe_img,
+        shield_img=shield_img,
+        windmill_house_img=windmill_house_img,
+        windmill_rotor_img=windmill_rotor_img,
         hud_font=pygame.font.Font(None, 44),
         title_font=pygame.font.Font(None, 72),
     )

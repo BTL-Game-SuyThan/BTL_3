@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 import math
 
 import pygame
@@ -14,6 +15,17 @@ class CollectibleConfig:
     points: int = 1
     bob_amplitude: float = 8.0
     bob_frequency: float = 2.1
+
+
+class CollectibleKind(str, Enum):
+    COIN = "coin"
+    SHIELD = "shield"
+
+
+@dataclass(slots=True)
+class CollectResult:
+    score: int = 0
+    granted_shield: bool = False
 
 
 def _frame(size: int, fill: tuple[int, int, int], accent: tuple[int, int, int], ring: tuple[int, int, int]) -> pygame.Surface:
@@ -43,8 +55,10 @@ class Collectible:
         speed: float,
         frames: list[pygame.Surface] | None = None,
         config: CollectibleConfig | None = None,
+        kind: CollectibleKind = CollectibleKind.COIN,
     ) -> None:
         self.config = config or CollectibleConfig()
+        self.kind = kind
         self.animation = SpriteAnimation(frames or make_collectible_frames(self.config), fps=10.0, loop=True)
         self.position = pygame.Vector2(position)
         self.base_y = float(position[1])
@@ -58,12 +72,14 @@ class Collectible:
     def current_frame(self) -> pygame.Surface:
         return self.animation.current_frame
 
-    def collect(self) -> int:
+    def collect(self) -> CollectResult:
         if self.collected:
-            return 0
+            return CollectResult()
         self.collected = True
         self.alive = False
-        return self.config.points
+        if self.kind == CollectibleKind.SHIELD:
+            return CollectResult(score=0, granted_shield=True)
+        return CollectResult(score=self.config.points, granted_shield=False)
 
     def update(self, dt: float, world_speed: float) -> None:
         if not self.alive:

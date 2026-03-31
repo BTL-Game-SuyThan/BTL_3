@@ -55,4 +55,5 @@ class PlayScene(Scene):
 
         score = _read_attr(self.game_state, "score", default=0)
         best = _read_attr(self.game_state, "best_score", "high_score", default=None)
-        self.hud.draw(surface, score=score, best_score=best)
+        has_shield = _read_attr(self.game_state, "has_shield", default=False)
+        self.hud.draw(surface, score=score, best_score=best, has_shield=has_shield)
