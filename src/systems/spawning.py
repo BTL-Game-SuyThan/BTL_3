@@ -176,6 +176,7 @@ class Spawner:
             pipe_wheel_arm_length=self.config.pipe_wheel_arm_length,
             pipe_wheel_hub_radius=self.config.pipe_wheel_hub_radius,
             pipe_wheel_collision_thickness=self.config.pipe_wheel_collision_thickness,
+            pipe_wheel_collision_scale=self.config.pipe_wheel_collision_scale,
             pipe_wheel_spin_speed=self.config.pipe_wheel_spin_speed,
             pipe_wheel_sync_x=float(
                 self.config.player_start_x

@@ -24,7 +24,8 @@ class ObstacleConfig:
     pipe_wheel_arm_width: int = 88
     pipe_wheel_arm_length: int = 320
     pipe_wheel_hub_radius: float = 34.0
-    pipe_wheel_collision_thickness: float = 20.0
+    pipe_wheel_collision_thickness: float = 18.0
+    pipe_wheel_collision_scale: float = 0.8
     pipe_wheel_spin_speed: float = 40.0
     pipe_wheel_sync_x: float = 400.0
     pipe_wheel_safe_angle: float = 0.0
@@ -88,6 +89,9 @@ class Obstacle:
         self._house_rect = pygame.Rect(0, 0, 0, 0)
         self._rotor_center = pygame.Vector2(0.0, 0.0)
         self._pipe_wheel_center = pygame.Vector2(0.0, 0.0)
+        self._pipe_wheel_segments: list[
+            tuple[pygame.Vector2, pygame.Vector2, float]
+        ] = []
         self._windmill_kill_margin = 30.0
 
         if self.kind == ObstacleKind.WINDMILL:
@@ -233,32 +237,38 @@ class Obstacle:
                 hub_size,
             )
         ]
+        self._pipe_wheel_segments = []
 
-        inner_radius = hub_radius + 6.0
-        outer_radius = float(self.config.pipe_wheel_arm_length - 10)
-        half_thickness = self.config.pipe_wheel_collision_thickness * 0.5
+        inner_radius = max(0.0, hub_radius - 3.0)
+        outer_radius = float(self.config.pipe_wheel_arm_length - 2)
+        arm_visual_thickness = float(
+            self.config.pipe_wheel_arm_width
+            if self._pipe_wheel_arm_source is None
+            else self._pipe_wheel_arm_source.get_height()
+        )
+        effective_thickness = max(
+            self.config.pipe_wheel_collision_thickness,
+            arm_visual_thickness * self.config.pipe_wheel_collision_scale,
+        )
+        half_thickness = effective_thickness * 0.5
 
         for base_angle in (0.0, 90.0, 180.0, 270.0):
             angle = math.radians(self.rotation + base_angle)
             direction = pygame.Vector2(math.cos(angle), math.sin(angle))
-            ortho = pygame.Vector2(-direction.y, direction.x)
             start = self._pipe_wheel_center + direction * inner_radius
             end = self._pipe_wheel_center + direction * outer_radius
-            corners = [
-                start + ortho * half_thickness,
-                start - ortho * half_thickness,
-                end + ortho * half_thickness,
-                end - ortho * half_thickness,
-            ]
-            min_x = min(point.x for point in corners)
-            max_x = max(point.x for point in corners)
-            min_y = min(point.y for point in corners)
-            max_y = max(point.y for point in corners)
-            left = math.floor(min_x)
-            top = math.floor(min_y)
-            width = max(1, math.ceil(max_x) - left)
-            height = max(1, math.ceil(max_y) - top)
-            self._collision_rects.append(pygame.Rect(left, top, width, height))
+            self._pipe_wheel_segments.append((start, end, half_thickness))
+
+            arm_length = max(1.0, outer_radius - inner_radius)
+            step_len = max(6.0, effective_thickness * 0.42)
+            step_count = max(2, int(math.ceil(arm_length / step_len)))
+            for index in range(step_count + 1):
+                alpha = index / step_count
+                center = start.lerp(end, alpha)
+                side = max(2, int(math.ceil(half_thickness * 2.0)))
+                left = int(round(center.x - side * 0.5))
+                top = int(round(center.y - side * 0.5))
+                self._collision_rects.append(pygame.Rect(left, top, side, side))
 
     @property
     def collision_rects(self) -> list[pygame.Rect]:
@@ -270,6 +280,36 @@ class Obstacle:
         if self.bottom_rect.height > 0:
             rects.append(self.bottom_rect)
         return rects
+
+    def collides_with_rect(self, rect: pygame.Rect) -> bool:
+        if self.kind == ObstacleKind.PIPE_WHEEL:
+            return self._pipe_wheel_collides_with_rect(rect)
+        return any(rect.colliderect(hit_rect) for hit_rect in self.collision_rects)
+
+    @staticmethod
+    def _circle_intersects_rect(
+        center: pygame.Vector2, radius: float, rect: pygame.Rect
+    ) -> bool:
+        nearest_x = max(rect.left, min(center.x, rect.right))
+        nearest_y = max(rect.top, min(center.y, rect.bottom))
+        dx = center.x - nearest_x
+        dy = center.y - nearest_y
+        return dx * dx + dy * dy <= radius * radius
+
+    def _pipe_wheel_collides_with_rect(self, rect: pygame.Rect) -> bool:
+        if self._circle_intersects_rect(
+            self._pipe_wheel_center, self.config.pipe_wheel_hub_radius, rect
+        ):
+            return True
+
+        for start, end, half_thickness in self._pipe_wheel_segments:
+            thickness = max(1, int(math.ceil(half_thickness * 2.0)))
+            expanded = rect.inflate(thickness, thickness)
+            if expanded.clipline(
+                (round(start.x), round(start.y)), (round(end.x), round(end.y))
+            ):
+                return True
+        return False
 
     def update(self, dt: float, world_speed: float) -> None:
         if not self.alive:

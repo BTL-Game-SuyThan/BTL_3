@@ -25,9 +25,8 @@ def player_hits_obstacles(player: Player, obstacles: list[Obstacle]) -> bool:
 
 def first_collided_obstacle(player: Player, obstacles: list[Obstacle]) -> Obstacle | None:
     for obstacle in obstacles:
-        for rect in obstacle.collision_rects:
-            if player.hitbox.colliderect(rect):
-                return obstacle
+        if obstacle.collides_with_rect(player.hitbox):
+            return obstacle
     return None
 
 

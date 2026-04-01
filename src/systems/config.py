@@ -45,7 +45,8 @@ class GameConfig:
     pipe_wheel_arm_width: int = 88
     pipe_wheel_arm_length: int = 320
     pipe_wheel_hub_radius: float = 34.0
-    pipe_wheel_collision_thickness: float = 20.0
+    pipe_wheel_collision_thickness: float = 18.0
+    pipe_wheel_collision_scale: float = 0.8
     pipe_wheel_spin_speed: float = 40.0
     pipe_wheel_unlock_obstacles: int = 4
     pipe_wheel_weight: float = 0.14
