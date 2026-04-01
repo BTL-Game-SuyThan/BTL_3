@@ -117,9 +117,17 @@ def _build_external_player_frames() -> (
     birds_idle_assets = {}
     birds_flap_assets = {}
 
-    for bird in BIRD_ROOT._scandir():
-        color = bird.name.split("_")[0].lower()
-        bird_sheet = _load_image(BIRD_ROOT / bird.name)
+    if not BIRD_ROOT.exists():
+        return None
+
+    for bird_path in sorted(BIRD_ROOT.iterdir()):
+        if not bird_path.is_file() or bird_path.suffix.lower() != ".png":
+            continue
+
+        color = bird_path.stem.split("_")[0].lower()
+        bird_sheet = _load_image(bird_path)
+        if bird_sheet is None:
+            continue
 
         idle_frames = [
             _extract_sheet(bird_sheet, (16, 16), 0, 1),
@@ -158,7 +166,7 @@ class AssetBundle:
     background_sets: dict[str, list[pygame.Surface]]
     player_idle_frames: dict[str, list[pygame.Surface]]
     player_flap_frames: dict[str, list[pygame.Surface]]
-    collectible_frames: dict[str, list[pygame.Surface]]
+    collectible_frames: list[pygame.Surface]
     pipe_img: pygame.Surface | None
     dynamic_pipe_img: pygame.Surface | None
     gravity_pipe_img: pygame.Surface | None

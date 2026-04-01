@@ -11,6 +11,7 @@ class ObstacleKind(str, Enum):
     PIPE = "pipe"
     DYNAMIC_PIPE = "dynamic_pipe"
     GRAVITY_PIPE = "gravity_pipe"
+    PIPE_WHEEL = "pipe_wheel"
     WINDMILL = "windmill"
 
 
@@ -19,6 +20,14 @@ class ObstacleConfig:
     pipe_width: int = 92
     dynamic_pipe_width: int = 92
     gravity_pipe_width: int = 92
+    pipe_wheel_width: int = 620
+    pipe_wheel_arm_width: int = 88
+    pipe_wheel_arm_length: int = 320
+    pipe_wheel_hub_radius: float = 34.0
+    pipe_wheel_collision_thickness: float = 20.0
+    pipe_wheel_spin_speed: float = 40.0
+    pipe_wheel_sync_x: float = 400.0
+    pipe_wheel_safe_angle: float = 0.0
     moving_pillar_amplitude: float = 44.0
     moving_pillar_frequency: float = 1.15
     windmill_width: int = 130
@@ -73,12 +82,16 @@ class Obstacle:
         self._collision_rects: list[pygame.Rect] = []
         self._house_img: pygame.Surface | None = None
         self._rotor_img: pygame.Surface | None = None
+        self._pipe_wheel_arm_source: pygame.Surface | None = None
         self._house_rect = pygame.Rect(0, 0, 0, 0)
         self._rotor_center = pygame.Vector2(0.0, 0.0)
+        self._pipe_wheel_center = pygame.Vector2(0.0, 0.0)
         self._windmill_kill_margin = 30.0
 
         if self.kind == ObstacleKind.WINDMILL:
             self._init_windmill_images(windmill_house_img, windmill_rotor_img)
+        elif self.kind == ObstacleKind.PIPE_WHEEL:
+            self._init_pipe_wheel_image(pipe_img)
         else:
             if pipe_img is None:
                 pipe_img = _default_pipe_surface(self.width)
@@ -124,9 +137,29 @@ class Obstacle:
                 pygame.draw.polygon(self._rotor_img, (224, 224, 224), [tip, left, center, right])
             pygame.draw.circle(self._rotor_img, (116, 116, 116), center, max(4, rotor_target // 16))
 
+    def _init_pipe_wheel_image(self, pipe_img: pygame.Surface | None) -> None:
+        arm_width = self.config.pipe_wheel_arm_width
+        arm_length = self.config.pipe_wheel_arm_length
+
+        if pipe_img is None:
+            pipe_img = _default_pipe_surface(arm_width, arm_length)
+
+        scale_factor = arm_width / max(1, pipe_img.get_width())
+        scaled_height = max(arm_length, int(pipe_img.get_height() * scale_factor))
+        vertical_pipe = pygame.transform.smoothscale(
+            pipe_img, (arm_width, scaled_height)
+        )
+        crop_rect = pygame.Rect(0, 0, arm_width, arm_length)
+        self._pipe_wheel_arm_source = pygame.transform.rotate(
+            vertical_pipe.subsurface(crop_rect).copy(), -90
+        )
+
     def _build_rects(self) -> None:
         if self.kind == ObstacleKind.WINDMILL:
             self._build_windmill_rects()
+            return
+        if self.kind == ObstacleKind.PIPE_WHEEL:
+            self._build_pipe_wheel_rects()
             return
 
         gap_top = self.gap_center_y - self.gap_size / 2
@@ -165,9 +198,48 @@ class Obstacle:
                 )
             )
 
+    def _build_pipe_wheel_rects(self) -> None:
+        self._pipe_wheel_center.update(self.x + self.width * 0.5, self.gap_center_y)
+        hub_radius = self.config.pipe_wheel_hub_radius
+        hub_size = max(10, int(hub_radius * 1.25))
+        self._collision_rects = [
+            pygame.Rect(
+                int(self._pipe_wheel_center.x - hub_size / 2),
+                int(self._pipe_wheel_center.y - hub_size / 2),
+                hub_size,
+                hub_size,
+            )
+        ]
+
+        inner_radius = hub_radius + 6.0
+        outer_radius = float(self.config.pipe_wheel_arm_length - 10)
+        half_thickness = self.config.pipe_wheel_collision_thickness * 0.5
+
+        for base_angle in (0.0, 90.0, 180.0, 270.0):
+            angle = math.radians(self.rotation + base_angle)
+            direction = pygame.Vector2(math.cos(angle), math.sin(angle))
+            ortho = pygame.Vector2(-direction.y, direction.x)
+            start = self._pipe_wheel_center + direction * inner_radius
+            end = self._pipe_wheel_center + direction * outer_radius
+            corners = [
+                start + ortho * half_thickness,
+                start - ortho * half_thickness,
+                end + ortho * half_thickness,
+                end - ortho * half_thickness,
+            ]
+            min_x = min(point.x for point in corners)
+            max_x = max(point.x for point in corners)
+            min_y = min(point.y for point in corners)
+            max_y = max(point.y for point in corners)
+            left = math.floor(min_x)
+            top = math.floor(min_y)
+            width = max(1, math.ceil(max_x) - left)
+            height = max(1, math.ceil(max_y) - top)
+            self._collision_rects.append(pygame.Rect(left, top, width, height))
+
     @property
     def collision_rects(self) -> list[pygame.Rect]:
-        if self.kind == ObstacleKind.WINDMILL:
+        if self.kind in {ObstacleKind.WINDMILL, ObstacleKind.PIPE_WHEEL}:
             return list(self._collision_rects)
         rects = []
         if self.top_rect.height > 0:
@@ -189,6 +261,14 @@ class Obstacle:
             self.gap_center_y = self.base_gap_center_y + offset
         if self.kind == ObstacleKind.WINDMILL:
             self.rotation = (self.rotation + self.config.windmill_spin_speed * dt) % 360.0
+        elif self.kind == ObstacleKind.PIPE_WHEEL:
+            pipe_wheel_center_x = self.x + self.width * 0.5
+            degrees_per_pixel = self.config.pipe_wheel_spin_speed / 220.0
+            self.rotation = (
+                self.config.pipe_wheel_safe_angle
+                + (self.config.pipe_wheel_sync_x - pipe_wheel_center_x)
+                * degrees_per_pixel
+            ) % 360.0
 
         self._build_rects()
         kill_width = self.width if self.kind != ObstacleKind.WINDMILL else (
@@ -202,6 +282,9 @@ class Obstacle:
             return
         if self.kind == ObstacleKind.WINDMILL:
             self._draw_windmill(surface)
+            return
+        if self.kind == ObstacleKind.PIPE_WHEEL:
+            self._draw_pipe_wheel(surface)
             return
 
         # Draw Top Pipe
@@ -237,3 +320,34 @@ class Obstacle:
             center=(round(self._rotor_center.x), round(self._rotor_center.y))
         )
         surface.blit(rotated, rotor_rect)
+
+    def _draw_pipe_wheel(self, surface: pygame.Surface) -> None:
+        if self._pipe_wheel_arm_source is None:
+            return
+
+        arm_center_distance = (
+            self.config.pipe_wheel_arm_length * 0.5
+            - self.config.pipe_wheel_hub_radius * 0.35
+        )
+        center = (round(self._pipe_wheel_center.x), round(self._pipe_wheel_center.y))
+
+        for base_angle in (0.0, 90.0, 180.0, 270.0):
+            angle = self.rotation + base_angle
+            angle_rad = math.radians(angle)
+            direction = pygame.Vector2(math.cos(angle_rad), math.sin(angle_rad))
+            rotated = pygame.transform.rotozoom(
+                self._pipe_wheel_arm_source, -angle, 1.0
+            )
+            arm_rect = rotated.get_rect(
+                center=(
+                    round(self._pipe_wheel_center.x + direction.x * arm_center_distance),
+                    round(self._pipe_wheel_center.y + direction.y * arm_center_distance),
+                )
+            )
+            surface.blit(rotated, arm_rect)
+
+        hub_outer = max(6, int(self.config.pipe_wheel_hub_radius + 5))
+        hub_inner = max(4, int(self.config.pipe_wheel_hub_radius - 3))
+        pygame.draw.circle(surface, (32, 28, 24), center, hub_outer)
+        pygame.draw.circle(surface, (205, 191, 161), center, hub_outer, 3)
+        pygame.draw.circle(surface, (63, 56, 47), center, hub_inner)

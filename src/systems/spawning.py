@@ -26,6 +26,8 @@ def choose_obstacle_kind(
     state: DifficultyState,
     rng: random.Random,
     *,
+    pipe_wheel_enabled: bool,
+    pipe_wheel_weight: float,
     windmill_enabled: bool,
     windmill_weight: float,
 ) -> ObstacleKind:
@@ -34,6 +36,8 @@ def choose_obstacle_kind(
         (ObstacleKind.DYNAMIC_PIPE, state.dynamic_pipe_weight),
         (ObstacleKind.GRAVITY_PIPE, state.gravity_pipe_weight),
     ]
+    if pipe_wheel_enabled and pipe_wheel_weight > 0:
+        choices.append((ObstacleKind.PIPE_WHEEL, pipe_wheel_weight))
     if windmill_enabled and windmill_weight > 0:
         choices.append((ObstacleKind.WINDMILL, windmill_weight))
     total = sum(weight for _, weight in choices)
@@ -82,6 +86,22 @@ class Spawner:
         self.cooldown = self.config.spawn_interval
         self.pipe_spawn_count = 0
 
+    def _make_collectible(
+        self,
+        position: tuple[float, float],
+        speed: float,
+        *,
+        kind: CollectibleKind = CollectibleKind.COIN,
+        frames: list[pygame.Surface] | None = None,
+    ) -> Collectible:
+        return Collectible(
+            position=position,
+            speed=speed,
+            frames=frames if frames is not None else self.collectible_frames,
+            config=CollectibleConfig(points=self.config.collectible_points),
+            kind=kind,
+        )
+
     def update(
         self,
         dt: float,
@@ -94,12 +114,16 @@ class Spawner:
         self.cooldown -= dt
         results: list[SpawnResult] = []
         while self.cooldown <= 0:
-            results.append(
-                self.spawn_one(
-                    state, rng, screen_rect, obstacles_passed, gravity_direction
-                )
+            result = self.spawn_one(
+                state, rng, screen_rect, obstacles_passed, gravity_direction
             )
+            results.append(result)
             self.cooldown += state.spawn_interval
+            if result.obstacle.kind == ObstacleKind.PIPE_WHEEL:
+                self.cooldown += (
+                    self.config.pipe_wheel_followup_spacing
+                    / max(1.0, state.scroll_speed)
+                )
         return results
 
     def spawn_one(
@@ -110,17 +134,31 @@ class Spawner:
         obstacles_passed: int,
         gravity_direction: float,
     ) -> SpawnResult:
+        next_obstacle_index = obstacles_passed + 1
+        pipe_wheel_enabled = (
+            self.config.pipe_wheel_enabled
+            and obstacles_passed >= self.config.pipe_wheel_unlock_obstacles
+        )
         windmill_enabled = (
             self.config.windmill_enabled
             and obstacles_passed >= self.config.windmill_unlock_obstacles
             and gravity_direction > 0.0
         )
-        kind = choose_obstacle_kind(
-            state,
-            rng,
-            windmill_enabled=windmill_enabled,
-            windmill_weight=self.config.windmill_weight,
-        )
+        if (
+            pipe_wheel_enabled
+            and self.config.pipe_wheel_spawn_interval > 0
+            and next_obstacle_index % self.config.pipe_wheel_spawn_interval == 0
+        ):
+            kind = ObstacleKind.PIPE_WHEEL
+        else:
+            kind = choose_obstacle_kind(
+                state,
+                rng,
+                pipe_wheel_enabled=False,
+                pipe_wheel_weight=0.0,
+                windmill_enabled=windmill_enabled,
+                windmill_weight=self.config.windmill_weight,
+            )
         gap_size = rng.uniform(state.min_gap, state.max_gap)
         gap_center = rng.uniform(screen_rect.height * 0.24, screen_rect.height * 0.72)
         x = float(screen_rect.width + 10)
@@ -133,6 +171,18 @@ class Spawner:
             pipe_width=self.config.pipe_width,
             dynamic_pipe_width=self.config.dynamic_pipe_width,
             gravity_pipe_width=self.config.gravity_pipe_width,
+            pipe_wheel_width=self.config.pipe_wheel_width,
+            pipe_wheel_arm_width=self.config.pipe_wheel_arm_width,
+            pipe_wheel_arm_length=self.config.pipe_wheel_arm_length,
+            pipe_wheel_hub_radius=self.config.pipe_wheel_hub_radius,
+            pipe_wheel_collision_thickness=self.config.pipe_wheel_collision_thickness,
+            pipe_wheel_spin_speed=self.config.pipe_wheel_spin_speed,
+            pipe_wheel_sync_x=float(
+                self.config.player_start_x
+                + self.config.pipe_wheel_arm_length * 0.5
+                + self.config.pipe_wheel_collision_thickness
+            ),
+            pipe_wheel_safe_angle=self.config.pipe_wheel_safe_angle,
             windmill_width=self.config.windmill_width,
             moving_pillar_amplitude=self.config.moving_pillar_amplitude,
             moving_pillar_frequency=self.config.moving_pillar_frequency,
@@ -158,6 +208,19 @@ class Spawner:
                 moving=True,
                 motion_amplitude=self.config.moving_pillar_amplitude,
                 motion_frequency=self.config.moving_pillar_frequency,
+            )
+        elif kind == ObstacleKind.PIPE_WHEEL:
+            gap_center = float(screen_rect.centery)
+            obstacle = Obstacle(
+                kind=kind,
+                x=x,
+                screen_height=screen_rect.height,
+                gap_center_y=gap_center,
+                gap_size=gap_size,
+                scroll_speed=state.scroll_speed,
+                width=self.config.pipe_wheel_width,
+                pipe_img=pipe_img,
+                config=obs_config,
             )
         elif kind == ObstacleKind.GRAVITY_PIPE:
             if self.assets and self.assets.gravity_pipe_img:
@@ -199,6 +262,7 @@ class Spawner:
                 config=obs_config,
             )
 
+        center_x = x + obstacle.width * 0.5
         collectible_y = gap_center + self.config.collectible_offset
         is_pipe_obstacle = kind in {
             ObstacleKind.PIPE,
@@ -218,33 +282,36 @@ class Spawner:
         )
         lane_start_x = x + obstacle.width + 28.0
         lane_usable = max(80.0, predicted_column_spacing - 56.0)
-        if spawn_shield:
+        if kind == ObstacleKind.PIPE_WHEEL:
+            offset = self.config.pipe_wheel_coin_offset
+            collectibles = [
+                self._make_collectible(
+                    (center_x - offset, gap_center - offset), state.scroll_speed
+                ),
+                self._make_collectible(
+                    (center_x + offset, gap_center - offset), state.scroll_speed
+                ),
+                self._make_collectible(
+                    (center_x - offset, gap_center + offset), state.scroll_speed
+                ),
+                self._make_collectible(
+                    (center_x + offset, gap_center + offset), state.scroll_speed
+                ),
+            ]
+        elif spawn_shield:
             shield_x = lane_start_x + lane_usable * 0.50
             collectibles = [
-                Collectible(
-                    position=(x + obstacle.width * 0.5, collectible_y),
-                    speed=state.scroll_speed,
-                    frames=self.collectible_frames,
-                    config=CollectibleConfig(points=self.config.collectible_points),
-                    kind=CollectibleKind.COIN,
-                ),
-                Collectible(
-                    position=(shield_x, collectible_y),
-                    speed=state.scroll_speed,
-                    frames=self.shield_frames,
-                    config=CollectibleConfig(points=self.config.collectible_points),
+                self._make_collectible((center_x, collectible_y), state.scroll_speed),
+                self._make_collectible(
+                    (shield_x, collectible_y),
+                    state.scroll_speed,
                     kind=CollectibleKind.SHIELD,
-                )
+                    frames=self.shield_frames,
+                ),
             ]
         else:
             collectibles = [
-                Collectible(
-                    position=(x + obstacle.width * 0.5, collectible_y),
-                    speed=state.scroll_speed,
-                    frames=self.collectible_frames,
-                    config=CollectibleConfig(points=self.config.collectible_points),
-                    kind=CollectibleKind.COIN,
-                )
+                self._make_collectible((center_x, collectible_y), state.scroll_speed)
             ]
         if is_pipe_obstacle:
             self.pipe_spawn_count += 1
