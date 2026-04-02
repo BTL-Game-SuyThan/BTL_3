@@ -59,21 +59,22 @@ The background uses three independent layers with different speed multipliers. E
 
 Active in-game assets:
 
-- Bird sprite sheet: `assets/images/oga/bird_v001_blue_and_yellow.png`
-  Source: [Bird by rmazanek](https://opengameart.org/content/bird-2)
-  License: `CC0`
-  Usage: player idle and flap animation frames
+- Birds sprite sheet: `assets/images/birds/*.png`
+  Source: [Birds by MegaCrash](https://megacrash.itch.io/flappy-bird-assets)
+
+- Pipes sprite sheet: `assets/images/pipes/*.png`
+  Source: [Pipes by MegaCrash](https://megacrash.itch.io/flappy-bird-assets)
+
 - Coin sprite sheet: `assets/images/oga/coin.png`
   Source: [coin by kotnaszynce](https://opengameart.org/content/coin-2)
-  License: `CC0`
-  Usage: collectible animation frames
+
+- Shield icon:
+  Source: [Free Shield and Amulet RPG Icons](https://free-game-assets.itch.io/free-shield-and-amulet-rpg-icons)
 
 Background assets (actively used in-game):
 
 - Parallax background from `assets/images/background/`
   Source: [Parallax (Country side, city night, city destroyed)](https://bongseng.itch.io/parallax-country-side-city-night-city-destroyed)
-  License: `CC0`
-  Usage status: active for parallax composition
 
 Notes:
 
