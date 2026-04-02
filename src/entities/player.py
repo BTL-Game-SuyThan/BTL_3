@@ -220,12 +220,23 @@ class Player:
         )
         self.hitbox = hitbox
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pygame.Surface, shield_active: bool = False) -> None:
         if self.is_damage_immune:
             blink_period = 1.0 / max(0.1, self.config.damage_blink_frequency)
             phase = (self.damage_blink_timer % blink_period) / blink_period
             if phase < 0.42:
                 return
+
+        if shield_active:
+            halo_radius = max(self.rect.width, self.rect.height) // 2 + 10
+            halo_size = halo_radius * 2 + 12
+            halo = pygame.Surface((halo_size, halo_size), pygame.SRCALPHA)
+            center = (halo_size // 2, halo_size // 2)
+            pygame.draw.circle(halo, (72, 170, 255, 72), center, halo_radius + 3, 4)
+            pygame.draw.circle(halo, (118, 214, 255, 148), center, halo_radius, 2)
+            halo_rect = halo.get_rect(center=self.rect.center)
+            surface.blit(halo, halo_rect)
+
         frame = self.current_frame
         if self.gravity_direction < 0:
             frame = pygame.transform.flip(frame, False, True)

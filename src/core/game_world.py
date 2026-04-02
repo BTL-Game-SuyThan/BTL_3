@@ -343,4 +343,4 @@ class GameWorld:
         for collectible in self.collectibles:
             collectible.draw(surface)
         self.particles.draw(surface)
-        self.player.draw(surface)
+        self.player.draw(surface, shield_active=self.has_shield)

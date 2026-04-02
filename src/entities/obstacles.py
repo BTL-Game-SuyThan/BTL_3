@@ -394,8 +394,9 @@ class Obstacle:
         if self._pipe_wheel_arm_source is None:
             return
 
-        for rect in self._collision_rects:
-            pygame.draw.rect(surface, (255, 0, 0), rect)
+        # DEBUG RED BOX
+        # for rect in self._collision_rects:
+        #     pygame.draw.rect(surface, (255, 0, 0), rect)
 
         arm_center_distance = (
             self.config.pipe_wheel_arm_length * 0.5
