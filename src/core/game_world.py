@@ -216,6 +216,7 @@ class GameWorld:
             collected = collect_player_collectibles(self.player, self.collectibles)
             if collected.granted_shield:
                 self.has_shield = True
+                self.audio.play_shield()
             if collected.score > 0:
                 self.audio.play_coin()
             self.score += collected.score

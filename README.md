@@ -76,9 +76,16 @@ Background assets (actively used in-game):
 - Parallax background from `assets/images/background/`
   Source: [Parallax (Country side, city night, city destroyed)](https://bongseng.itch.io/parallax-country-side-city-night-city-destroyed)
 
+Audio:
+- Background music: in the `asset/images/sounds/background.mp3`
+  Source: https://www.youtube.com/watch?v=7T_YtklLyyo&list=RD7T_YtklLyyo&start_radio=1
+- Shield powerup music in the `asset/images/sounds/shield_sfx.wav`
+  Source: https://tiengdong.com/
+
+
 Notes:
 
-- Audio is generated procedurally in code (no external sound files).
+- Other audio is generated procedurally in code (no external sound files).
 - Obstacles are generated in code with updated stylized surfaces.
 
 ## Additional Credits

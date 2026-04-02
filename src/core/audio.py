@@ -79,6 +79,7 @@ class AudioManager:
         self._sfx_coin: pygame.mixer.Sound | None = None
         self._sfx_pass: pygame.mixer.Sound | None = None
         self._sfx_die: pygame.mixer.Sound | None = None
+        self._sfx_shield: pygame.mixer.Sound | None = None
         self._init_audio()
 
     def _init_audio(self) -> None:
@@ -86,18 +87,22 @@ class AudioManager:
             if pygame.mixer.get_init() is None:
                 pygame.mixer.init(frequency=44100, size=-16, channels=1, buffer=512)
 
-            self._music = pygame.mixer.Sound(
-                file=io.BytesIO(
-                    _build_sound(
-                        (220.0, 0.55, "triangle"),
-                        (277.2, 0.55, "triangle"),
-                        (329.6, 0.55, "triangle"),
-                        (277.2, 0.55, "triangle"),
-                        volume=0.17,
-                        decay=1.1,
+            music_path = "assets/images/sounds/background.mp3"
+            try:
+                self._music = pygame.mixer.Sound(music_path)
+            except (pygame.error, FileNotFoundError):
+                self._music = pygame.mixer.Sound(
+                    file=io.BytesIO(
+                        _build_sound(
+                            (220.0, 0.55, "triangle"),
+                            (277.2, 0.55, "triangle"),
+                            (329.6, 0.55, "triangle"),
+                            (277.2, 0.55, "triangle"),
+                            volume=0.17,
+                            decay=1.1,
+                        )
                     )
                 )
-            )
             self._sfx_flap = pygame.mixer.Sound(
                 file=io.BytesIO(
                     _build_sound(
@@ -140,6 +145,13 @@ class AudioManager:
                 )
             )
 
+            shield_path = "assets/images/sounds/shield_sfx.wav"
+            try:
+                self._sfx_shield = pygame.mixer.Sound(shield_path)
+                self._sfx_shield.set_volume(0.55)
+            except (pygame.error, FileNotFoundError):
+                self._sfx_shield = None
+
             self._music.set_volume(0.23)
             self._sfx_flap.set_volume(0.45)
             self._sfx_coin.set_volume(0.55)
@@ -171,3 +183,7 @@ class AudioManager:
     def play_die(self) -> None:
         if self.enabled and self._sfx_die is not None:
             self._sfx_die.play()
+
+    def play_shield(self) -> None:
+        if self.enabled and self._sfx_shield is not None:
+            self._sfx_shield.play()
